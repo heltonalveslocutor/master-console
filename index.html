@@ -1,380 +1,340 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Master Console - Helton Alves</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Rajdhani:wght@600;700&display=swap');
-        
-        :root { 
-            --bg: #050505; --card: #111111; --pad-bg: #1a1a1a; 
-            --primary: #00e5ff; --accent: #00ff88; --danger: #ff4d4d; 
-            --text: #f0f0f0; --dim: #999999; 
-        }
-        
-        body.pg-A { --primary: #00e5ff; } 
-        body.pg-B { --primary: #ffcc00; } 
-        body.pg-C { --primary: #d600ff; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Master Console</title>
 
-        body { 
-            font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); 
-            display: flex; justify-content: center; align-items: center; 
-            height: 100vh; margin: 0; overflow: hidden; 
-        }
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Rajdhani:wght@600;700&display=swap');
 
-        .container { 
-            zoom: 1.1; background: var(--card); padding: 15px 25px; border-radius: 12px; 
-            width: 95vw; max-width: 1300px; border: 1px solid #333; 
-            display: flex; flex-direction: column; gap: 10px; 
-            box-shadow: 0 0 50px #000;
-        }
+:root{
+    --bg:#050505;--card:#111;--pad:#1a1a1a;
+    --primary:#00e5ff;--accent:#00ff88;--danger:#ff4d4d;
+    --text:#f0f0f0;--dim:#888;
+}
 
-        .header-main { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; padding-bottom: 10px; }
-        .brand { font-family: 'Rajdhani', sans-serif; font-size: 1.8rem; font-weight: 700; letter-spacing: 2px; color: #fff; text-transform: uppercase; }
-        .brand span { color: var(--primary); }
+body.pg-A{--primary:#00e5ff}
+body.pg-B{--primary:#ffcc00}
+body.pg-C{--primary:#d600ff}
 
-        .icon-actions { display: flex; gap: 15px; }
-        .action-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-        .btn-top { 
-            width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; 
-            background: #222; border: 2px solid #444; border-radius: 10px; cursor: pointer; 
-            font-size: 1.2rem; transition: 0.2s; 
-        }
-        .btn-top:hover { border-color: var(--primary); background: #2a2a2a; }
-        .btn-label { font-size: 0.6rem; font-weight: 800; color: var(--dim); text-transform: uppercase; }
+body{
+    margin:0;
+    font-family:'Inter',sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    display:flex;
+    justify-content:center;
+    height:100vh;
+}
 
-        .tabs { display: flex; gap: 10px; margin-bottom: 5px; }
-        .tab { 
-            background: #1a1a1a; border: 2px solid #333; color: var(--dim); 
-            padding: 8px 25px; border-radius: 8px; cursor: pointer; 
-            font-weight: 800; transition: 0.3s;
-        }
-        .tab.active { background: var(--primary); color: #000; border-color: var(--primary); }
+.container{
+    width:96vw;max-width:1350px;
+    background:var(--card);
+    margin:20px;
+    padding:14px 25px;
+    border-radius:14px;
+    border:1px solid #333;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+}
 
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
-        .pad { 
-            background: var(--pad-bg); height: 120px; border-radius: 12px; border: 2px solid #333; 
-            position: relative; cursor: pointer; display: flex; flex-direction: column; 
-            justify-content: center; align-items: center; padding: 15px; transition: 0.1s;
-        }
-        .pad.active { border-color: var(--accent); background: #000; box-shadow: inset 0 0 20px rgba(0,255,136,0.1); }
+.brand{
+    font-family:'Rajdhani';
+    font-size:1.6rem;
+    font-weight:700;
+}
+.brand span{color:var(--primary)}
 
-        .pad-num { position: absolute; top: 10px; left: 12px; font-size: 0.8rem; font-weight: 800; color: #444; }
-        .pad-name { font-size: 1.1rem; font-weight: 800; color: var(--primary); text-align: center; pointer-events: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        
-        .pad-menu-btn { position: absolute; top: 8px; right: 10px; color: #555; font-size: 1.2rem; padding: 0 5px; }
-        .ctx { 
-            position: absolute; top: 30px; right: 10px; background: #252525; border: 1px solid #444; 
-            border-radius: 6px; display: none; flex-direction: column; z-index: 100; box-shadow: 0 5px 20px #000;
-        }
-        .ctx.show { display: flex; }
-        .ctx-item { padding: 12px 20px; font-size: 0.8rem; font-weight: 700; color: #fff; border-bottom: 1px solid #333; white-space: nowrap; }
-        .ctx-item:hover { background: var(--primary); color: #000; }
+.top{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
 
-        .progress { position: absolute; bottom: 0; left: 0; height: 4px; background: var(--accent); width: 0%; transition: linear; }
-        
-        #alert { 
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%); 
-            background: var(--accent); color: #000; padding: 12px 30px; 
-            border-radius: 8px; font-weight: 800; display: none; z-index: 1000; 
-        }
+.tabs{display:flex;gap:8px}
+.tab{
+    padding:6px 22px;
+    border:2px solid #333;
+    border-radius:6px;
+    background:#1a1a1a;
+    font-weight:800;
+    cursor:pointer;
+    color:var(--dim);
+}
+.tab.active{
+    background:var(--primary);
+    color:#000;
+    border-color:var(--primary);
+}
 
-        .master-bar { background: #000; padding: 10px 20px; border-radius: 8px; border: 1px solid #222; display: flex; align-items: center; gap: 20px; }
-        .vu-meter { flex: 1; height: 10px; background: #111; border-radius: 5px; overflow: hidden; border: 1px solid #333; }
-        #vu-inner { height: 100%; width: 0%; background: linear-gradient(90deg, #00ff88, #ffcc00, #ff3b3b); }
-    </style>
+.master{
+    display:grid;
+    grid-template-columns:1fr 220px;
+    gap:18px;
+    padding:10px 16px;
+    background:#000;
+    border-radius:8px;
+    border:1px solid #222;
+    align-items:center;
+}
+
+.vu{
+    height:10px;
+    background:#111;
+    border-radius:5px;
+    overflow:hidden;
+}
+#vuFill{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg,#00ff88 70%,#ffcc00 85%,#ff3b3b);
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:12px;
+}
+
+.pad{
+    background:var(--pad);
+    border:2px solid #333;
+    border-radius:12px;
+    height:135px;
+    padding:10px 14px;
+    position:relative;
+    cursor:pointer;
+    display:flex;
+    flex-direction:column;
+    transition:.15s;
+}
+
+.pad.active{
+    border-color:var(--accent);
+    background:#080808;
+    transform:translateY(-1px);
+    box-shadow:0 0 20px rgba(0,255,136,.35);
+}
+
+.pad.active::after{
+    content:'';
+    position:absolute;
+    inset:0;
+    box-shadow:0 0 30px rgba(0,255,136,.2);
+    animation:pulse 1.6s infinite;
+}
+
+@keyframes pulse{
+    0%{opacity:.3}
+    50%{opacity:.7}
+    100%{opacity:.3}
+}
+
+.prog{
+    position:absolute;
+    inset:0;
+    width:0%;
+    background:rgba(0,255,136,.12);
+    border-right:3px solid var(--accent);
+    pointer-events:none;
+    border-radius:10px 0 0 10px;
+    transition:width .04s linear;
+}
+
+.idx{
+    position:absolute;
+    top:8px;left:12px;
+    font-weight:800;
+    color:#444;
+}
+
+.controls{
+    position:absolute;
+    top:6px;right:10px;
+    display:flex;
+    gap:8px;
+}
+
+.loop{
+    background:none;
+    border:none;
+    cursor:pointer;
+    color:#555;
+}
+.loop.active{color:var(--primary)}
+
+.title{
+    margin-top:18px;
+    text-align:center;
+    font-weight:800;
+    color:var(--primary);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+
+.footer{
+    margin-top:auto;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+}
+
+.times{
+    display:flex;
+    justify-content:space-between;
+    font-family:'Rajdhani';
+    font-size:.85rem;
+}
+
+.vol{
+    width:100%;
+    accent-color:var(--primary);
+}
+</style>
 </head>
+
 <body class="pg-A">
 
-<div id="alert">MENSAGEM</div>
-
 <div class="container">
-    <div class="header-main">
-        <div class="brand">MASTER<span>CONSOLE</span></div>
-        <div class="icon-actions">
-            <div class="action-item"><div class="btn-top" onclick="stopAll()">🛑</div><div class="btn-label">Parar</div></div>
-            <div class="action-item"><div class="btn-top" onclick="exportBackup()">💾</div><div class="btn-label">Salvar</div></div>
-            <div class="action-item"><div class="btn-top" onclick="document.getElementById('importFile').click()">📂</div><div class="btn-label">Abrir</div></div>
-            <div class="action-item"><div class="btn-top" onclick="clearAllData()" style="color:var(--danger)">🗑️</div><div class="btn-label">Limpar</div></div>
-        </div>
-        <input type="file" id="importFile" style="display:none" accept=".json" onchange="importBackup(event)">
-    </div>
 
+<div class="top">
+    <div class="brand">MASTER<span>CONSOLE</span></div>
     <div class="tabs">
-        <div class="tab active" data-pg="A" onclick="switchPage('A')">BANCO A</div>
-        <div class="tab" data-pg="B" onclick="switchPage('B')">BANCO B</div>
-        <div class="tab" data-pg="C" onclick="switchPage('C')">BANCO C</div>
+        <div class="tab active" onclick="page('A')">A</div>
+        <div class="tab" onclick="page('B')">B</div>
+        <div class="tab" onclick="page('C')">C</div>
     </div>
+</div>
 
-    <div class="master-bar">
-        <div class="vu-meter"><div id="vu-inner"></div></div>
-        <input type="range" id="masterVol" min="0" max="1.5" step="0.05" value="1.0" style="width:150px">
-    </div>
+<div class="master">
+    <div class="vu"><div id="vuFill"></div></div>
+    <input type="range" min="0" max="1.5" step=".01" value="1"
+           oninput="masterGain.gain.value=this.value">
+</div>
 
-    <div class="grid" id="mainGrid"></div>
+<div class="grid" id="grid"></div>
+
 </div>
 
 <script>
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const masterGain = audioCtx.createGain();
-    const analyser = audioCtx.createAnalyser();
-    masterGain.connect(analyser); analyser.connect(audioCtx.destination);
+const ctx=new AudioContext();
+const masterGain=ctx.createGain();
+const analyser=ctx.createAnalyser();
+masterGain.connect(analyser);
+analyser.connect(ctx.destination);
 
-    let db;
-    let sounds = {}; 
-    let activeSources = {}; 
-    let currentPage = 'A';
-    let loops = {};
+let pageNow='A';
+let pads={},sources={};
 
-    // Iniciar Banco de Dados
-    const request = indexedDB.open("MasterConsoleStorage", 10);
-    request.onupgradeneeded = (e) => {
-        db = e.target.result;
-        if(!db.objectStoreNames.contains("files")) {
-            db.createObjectStore("files", { keyPath: "uid" });
-        }
-    };
-    request.onsuccess = (e) => {
-        db = e.target.result;
-        initGrid();
-        switchPage('A');
-    };
+const grid=document.getElementById('grid');
 
-    function msg(t) {
-        const a = document.getElementById('alert');
-        a.innerText = t; a.style.display = 'block';
-        setTimeout(() => a.style.display = 'none', 2000);
-    }
+for(let i=1;i<=9;i++){
+    grid.innerHTML+=`
+    <div class="pad" id="pad${i}">
+        <div class="prog" id="prog${i}"></div>
+        <div class="idx">${i}</div>
+        <div class="controls">
+            <button class="loop" id="loop${i}">⟳</button>
+        </div>
+        <div class="title" id="name${i}">---</div>
+        <div class="footer">
+            <div class="times">
+                <span id="cur${i}">00:00</span>
+                <span id="rem${i}">00:00</span>
+            </div>
+            <input class="vol" type="range" min="0" max="1" step=".01" value="1">
+        </div>
+        <input type="file" hidden id="file${i}" accept="audio/*">
+    </div>`;
+}
 
-    function initGrid() {
-        const container = document.getElementById('mainGrid');
-        container.innerHTML = '';
-        for (let i = 1; i <= 9; i++) {
-            const pad = document.createElement('div');
-            pad.className = 'pad';
-            pad.id = `pad-${i}`;
-            pad.innerHTML = `
-                <div class="pad-num">${i}</div>
-                <div class="pad-menu-btn" onclick="showCtx(event, ${i})">⋮</div>
-                <div class="pad-name" id="name-${i}">---</div>
-                <div class="progress" id="prog-${i}"></div>
-                <div class="ctx" id="ctx-${i}">
-                    <div class="ctx-item" onclick="triggerInput(${i})">📁 CARREGAR ÁUDIO</div>
-                    <div class="ctx-item" id="loop-btn-${i}" onclick="toggleLoop(${i})">🔄 REPETIR: NÃO</div>
-                    <div class="ctx-item" style="color:red" onclick="deletePad(${i})">🗑️ REMOVER</div>
-                </div>
-                <input type="file" id="file-${i}" style="display:none" accept="audio/*" onchange="loadAudio(event, ${i})">
-            `;
-            pad.onclick = (e) => { if(e.target.className === 'pad' || e.target.className === 'pad-name') play(i); };
-            container.appendChild(pad);
-        }
-    }
-
-    async function switchPage(p) {
-        stopAll();
-        currentPage = p;
-        document.body.className = `pg-${p}`;
-        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.pg === p));
-        
-        // Limpar visual
-        for(let i=1; i<=9; i++) {
-            document.getElementById(`name-${i}`).innerText = "---";
-            document.getElementById(`prog-${i}`).style.width = "0%";
-            document.getElementById(`loop-btn-${i}`).innerText = "🔄 REPETIR: NÃO";
-            loops[currentPage+i] = false;
-        }
-
-        // Carregar do Banco
-        const tx = db.transaction("files", "readonly");
-        const store = tx.objectStore("files");
-        store.getAll().onsuccess = (e) => {
-            const items = e.target.result.filter(x => x.page === currentPage);
-            items.forEach(async item => {
-                try {
-                    const buffer = await audioCtx.decodeAudioData(item.data.slice(0));
-                    sounds[item.id] = { buffer, name: item.name, data: item.data };
-                    document.getElementById(`name-${item.id}`).innerText = item.name;
-                } catch(err) { console.error("Erro ao carregar", item.name); }
-            });
-        };
-    }
-
-    async function loadAudio(e, id) {
-        const file = e.target.files[0];
-        if(!file) return;
-        const name = file.name.replace(/\.[^/.]+$/, "");
-        const arrayBuffer = await file.arrayBuffer();
-        
-        try {
-            const decoded = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
-            sounds[id] = { buffer: decoded, name: name, data: arrayBuffer };
-            
-            // Salvar no Banco
-            const tx = db.transaction("files", "readwrite");
-            tx.objectStore("files").put({
-                uid: currentPage + id,
-                page: currentPage,
-                id: id,
-                name: name,
-                data: arrayBuffer
-            });
-            
-            document.getElementById(`name-${id}`).innerText = name;
-            msg("ÁUDIO CARREGADO!");
-        } catch(err) { msg("ERRO NO FORMATO"); }
-    }
-
-    function play(id) {
-        if(!sounds[id]) return;
-        if(activeSources[id]) { stop(id); return; }
-
-        const source = audioCtx.createBufferSource();
-        source.buffer = sounds[id].buffer;
-        source.loop = !!loops[currentPage+id];
-        source.connect(masterGain);
-        
-        const pad = document.getElementById(`pad-${id}`);
-        const bar = document.getElementById(`prog-${id}`);
-        
-        source.start(0);
-        activeSources[id] = source;
-        pad.classList.add('active');
-
-        // Animação da barra
-        let start = audioCtx.currentTime;
-        const update = () => {
-            if(!activeSources[id]) return;
-            let now = audioCtx.currentTime;
-            let pct = ((now - start) % source.buffer.duration) / source.buffer.duration * 100;
-            bar.style.width = pct + "%";
-            requestAnimationFrame(update);
-        };
-        update();
-
-        source.onended = () => {
-            if(!source.loop) stop(id);
-        };
-    }
-
-    function stop(id) {
-        if(activeSources[id]) {
-            try { activeSources[id].stop(); } catch(e) {}
-            activeSources[id] = null;
-        }
-        document.getElementById(`pad-${id}`).classList.remove('active');
-        document.getElementById(`prog-${id}`).style.width = "0%";
-    }
-
-    function stopAll() { Object.keys(activeSources).forEach(id => stop(id)); }
-
-    function toggleLoop(id) {
-        loops[currentPage+id] = !loops[currentPage+id];
-        document.getElementById(`loop-btn-${id}`).innerText = loops[currentPage+id] ? "🔄 REPETIR: SIM" : "🔄 REPETIR: NÃO";
-        if(activeSources[id]) activeSources[id].loop = loops[currentPage+id];
-    }
-
-    function deletePad(id) {
-        stop(id);
-        delete sounds[id];
-        const tx = db.transaction("files", "readwrite");
-        tx.objectStore("files").delete(currentPage+id);
-        document.getElementById(`name-${id}`).innerText = "---";
-        msg("PAD LIMPO");
-    }
-
-    function clearAllData() {
-        if(confirm("LIMPAR TODOS OS BANCOS?")) {
-            const tx = db.transaction("files", "readwrite");
-            tx.objectStore("files").clear();
-            tx.oncomplete = () => location.reload();
-        }
-    }
-
-    // EXPORTAR BACKUP (SALVAR)
-    function exportBackup() {
-        const tx = db.transaction("files", "readonly");
-        tx.objectStore("files").getAll().onsuccess = (e) => {
-            const all = e.target.result;
-            if(!all.length) return msg("NADA PARA SALVAR");
-            
-            msg("PREPARANDO BACKUP...");
-            
-            const list = all.map(item => {
-                const bytes = new Uint8Array(item.data);
-                let binary = '';
-                for (let i = 0; i < bytes.byteLength; i++) {
-                    binary += String.fromCharCode(bytes[i]);
-                }
-                return { 
-                    p: item.page, 
-                    id: item.id, 
-                    n: item.name, 
-                    d: btoa(binary) 
-                };
-            });
-
-            const blob = new Blob([JSON.stringify(list)], {type: "application/json"});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `PALETA_MASTER_${new Date().toLocaleDateString()}.json`;
-            a.click();
-            msg("SALVO COM SUCESSO!");
-        };
-    }
-
-    // IMPORTAR BACKUP (ABRIR)
-    function importBackup(e) {
-        const file = e.target.files[0];
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const data = JSON.parse(ev.target.result);
-            const tx = db.transaction("files", "readwrite");
-            const store = tx.objectStore("files");
-            store.clear();
-            data.forEach(item => {
-                const bin = Uint8Array.from(atob(item.d), c => c.charCodeAt(0)).buffer;
-                store.put({ 
-                    uid: item.p + item.id, 
-                    page: item.p, 
-                    id: item.id, 
-                    name: item.n, 
-                    data: bin 
-                });
-            });
-            tx.oncomplete = () => { msg("BACKUP CARREGADO!"); setTimeout(()=>location.reload(), 1000); };
-        };
-        reader.readAsText(file);
-    }
-
-    // VU METER
-    function drawVU() {
-        const data = new Float32Array(analyser.frequencyBinCount);
-        analyser.getFloatTimeDomainData(data);
-        let sum = 0;
-        for(let i=0; i<data.length; i++) sum += data[i] * data[i];
-        let rms = Math.sqrt(sum / data.length);
-        document.getElementById('vu-inner').style.width = Math.min(100, rms * 400) + "%";
-        requestAnimationFrame(drawVU);
-    }
-    drawVU();
-
-    function showCtx(e, id) {
+document.querySelectorAll('.pad').forEach((p,i)=>{
+    const id=i+1;
+    pads[id]={loop:false,vol:1};
+    p.onclick=()=>play(id);
+    p.ondblclick=()=>document.getElementById('file'+id).click();
+    document.getElementById('loop'+id).onclick=e=>{
         e.stopPropagation();
-        document.querySelectorAll('.ctx').forEach(c => c.classList.remove('show'));
-        document.getElementById(`ctx-${id}`).classList.add('show');
+        pads[id].loop=!pads[id].loop;
+        e.target.classList.toggle('active',pads[id].loop);
     }
+    p.querySelector('.vol').oninput=e=>pads[id].vol=e.target.value;
+    document.getElementById('file'+id).onchange=async e=>{
+        const f=e.target.files[0];
+        const buf=await ctx.decodeAudioData(await f.arrayBuffer());
+        pads[id].buf=buf;
+        document.getElementById('name'+id).innerText=f.name.replace(/\..*/,'');
+        document.getElementById('rem'+id).innerText=time(buf.duration);
+    }
+});
 
-    function triggerInput(id) { document.getElementById(`file-${id}`).click(); }
+function play(id){
+    if(!pads[id].buf)return;
+    if(ctx.state==='suspended')ctx.resume();
+    if(sources[id])return stop(id);
 
-    window.onclick = () => document.querySelectorAll('.ctx').forEach(c => c.classList.remove('show'));
-    document.getElementById('masterVol').oninput = (e) => masterGain.gain.value = e.target.value;
-    window.onkeydown = (e) => {
-        if(e.key >= '1' && e.key <= '9') play(parseInt(e.key));
-        if(e.key === '0') stopAll();
-    };
+    const src=ctx.createBufferSource();
+    const g=ctx.createGain();
+    src.buffer=pads[id].buf;
+    src.loop=pads[id].loop;
+    g.gain.setValueAtTime(0,ctx.currentTime);
+    g.gain.linearRampToValueAtTime(pads[id].vol,ctx.currentTime+.015);
+    src.connect(g).connect(masterGain);
+    src.start();
+    sources[id]={src,g,start:ctx.currentTime};
+    document.getElementById('pad'+id).classList.add('active');
+
+    function anim(){
+        if(!sources[id])return;
+        let t=(ctx.currentTime-sources[id].start)%src.buffer.duration;
+        document.getElementById('prog'+id).style.width=(t/src.buffer.duration*100)+'%';
+        document.getElementById('cur'+id).innerText=time(t);
+        document.getElementById('rem'+id).innerText='-'+time(src.buffer.duration-t);
+        requestAnimationFrame(anim);
+    }
+    anim();
+
+    src.onended=()=>!pads[id].loop&&stop(id);
+}
+
+function stop(id){
+    const o=sources[id];
+    if(!o)return;
+    o.g.gain.linearRampToValueAtTime(0,ctx.currentTime+.02);
+    setTimeout(()=>o.src.stop(),25);
+    sources[id]=null;
+    document.getElementById('pad'+id).classList.remove('active');
+    document.getElementById('prog'+id).style.width='0%';
+}
+
+function page(p){
+    pageNow=p;
+    document.body.className='pg-'+p;
+    document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.innerText===p));
+}
+
+function time(s){
+    const m=Math.floor(s/60),sc=Math.floor(s%60);
+    return m.toString().padStart(2,'0')+':'+sc.toString().padStart(2,'0');
+}
+
+function vu(){
+    const d=new Float32Array(analyser.fftSize);
+    analyser.getFloatTimeDomainData(d);
+    let sum=0;d.forEach(v=>sum+=v*v);
+    const rms=Math.sqrt(sum/d.length);
+    vuFill.style.width=Math.min(100,Math.max(0,(20*Math.log10(rms)+50)*2))+'%';
+    requestAnimationFrame(vu);
+}
+vu();
+
+window.onkeydown=e=>{
+    if(e.key>=1&&e.key<=9)play(+e.key);
+    if(e.key==='0')Object.keys(sources).forEach(stop);
+}
 </script>
 </body>
 </html>
