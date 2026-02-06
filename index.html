@@ -1,627 +1,281 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Master Console - Helton Alves</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎚️</text></svg>">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Rajdhani:wght@600;700&display=swap');
+<meta charset="UTF-8">
+<title>Master Console - Helton Alves</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-        :root {
-            --bg: #050505; --card: #111111; --pad-bg: #1a1a1a;
-            --primary: #00e5ff; --accent: #00ff88; --danger: #ff4d4d;
-            --text: #f0f0f0; --dim: #999999;
-        }
-
-        body.pg-A { --primary: #00e5ff; }
-        body.pg-B { --primary: #ffcc00; }
-        body.pg-C { --primary: #d600ff; }
-
-        body {
-            font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text);
-            display: flex; justify-content: center; align-items: center;
-            min-height: 100vh; margin: 0; padding: 10px;
-            overflow: auto;
-        }
-
-        .container {
-            background: var(--card); padding: 12px 25px; border-radius: 12px;
-            width: 100%; max-width: 1350px; border: 1px solid #333;
-            box-shadow: 0 0 60px rgba(0,0,0,1); display: flex; flex-direction: column; gap: 8px;
-            margin: 10px 0;
-        }
-
-        .header-main { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; padding-bottom: 8px; }
-        .brand { font-family: 'Rajdhani', sans-serif; font-size: 1.7rem; font-weight: 700; letter-spacing: 2px; color: #fff; text-transform: uppercase; }
-        .brand span { color: var(--primary); }
-
-        .icon-actions { display: flex; gap: 12px; }
-        .action-wrapper { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 55px; }
-        .icon-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: #222; border: 2px solid #444; border-radius: 8px; cursor: pointer; transition: 0.2s; color: #fff; }
-        .icon-btn:hover { border-color: var(--primary); transform: scale(1.05); }
-        .icon-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
-        .icon-btn svg { width: 20px; height: 20px; fill: currentColor; }
-        .tooltip-text { font-size: 0.6rem; font-weight: 800; color: var(--dim); text-align: center; }
-
-        .top-row { display: flex; justify-content: space-between; align-items: center; }
-        .page-tabs { display: flex; gap: 8px; }
-        .tab { background: #1a1a1a; border: 2px solid #333; color: var(--dim); padding: 6px 25px; border-radius: 6px; cursor: pointer; font-weight: 800; font-size: 0.85rem; transition: 0.3s; }
-        .tab.active { background: var(--primary); color: #000; border-color: var(--primary); }
-
-        .master-strip { display: grid; grid-template-columns: 1fr 220px; gap: 20px; background: #000; padding: 10px 18px; border-radius: 8px; border: 1px solid #222; align-items: center; }
-        .vu-container { height: 10px; background: #111; border-radius: 5px; overflow: hidden; border: 1px solid #333; }
-        #vu-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #00ff88 70%, #ffcc00 85%, #ff3b3b 100%); transition: width 0.07s; }
-
-        .grid-pads { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-        
-        .pad { 
-            background: var(--pad-bg); height: 115px; border-radius: 10px; 
-            border: 2px solid #333; position: relative; cursor: pointer; 
-            display: flex; flex-direction: column; padding: 10px 15px; 
-            box-sizing: border-box; transition: 0.15s;
-        }
-        .pad.active { border-color: var(--accent); background: #080808; }
-
-        .prog-bar { 
-            position: absolute; top: 0; left: 0; height: 100%; width: 0%; 
-            background: rgba(0, 255, 136, 0.1); border-right: 3px solid var(--accent); 
-            pointer-events: none; z-index: 1; 
-            border-radius: 8px 0 0 8px;
-        }
-
-        .p-idx { position: absolute; top: 8px; left: 12px; font-size: 0.9rem; font-weight: 800; color: #444; }
-        .pad-controls { position: absolute; top: 6px; right: 10px; display: flex; gap: 8px; z-index: 10; }
-        .btn-loop { background: none; border: none; color: #555; cursor: pointer; padding: 4px; display: flex; }
-        .btn-loop.active { color: var(--primary); }
-        .btn-loop svg { width: 18px; height: 18px; fill: currentColor; }
-        .p-menu-trigger { color: var(--dim); font-size: 1.6rem; cursor: pointer; line-height: 0.6; font-weight: bold; }
-        
-        .p-title { font-size: 1.2rem; font-weight: 800; color: var(--primary); text-align: center; margin-top: 18px; z-index: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .p-footer { margin-top: auto; display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: 600; z-index: 2; }
-        
-        .console-footer { margin-top: 5px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 0.7rem; color: #555; font-weight: 600; }
-
-        .dev-link { color: var(--primary); text-decoration: none; transition: 0.2s; font-weight: 800; border-bottom: 1px solid transparent; }
-        .dev-link:hover { border-color: var(--primary); filter: brightness(1.2); }
-
-        #alert { position: fixed; top: 15px; background: var(--primary); color: #000; padding: 10px 30px; border-radius: 8px; font-weight: 800; z-index: 9999; display: none; left: 50%; transform: translateX(-50%); font-size: 0.9rem; }
-
-        .ctx-menu { 
-            position: absolute; top: 25px; right: 0; background: #252525; 
-            border: 1px solid #555; border-radius: 6px; display: none; 
-            flex-direction: column; z-index: 1000; 
-            box-shadow: 0 10px 30px #000;
-        }
-        .ctx-menu.show { display: flex; }
-        .ctx-opt { padding: 10px 18px; font-size: 0.8rem; cursor: pointer; border-bottom: 1px solid #333; font-weight: 700; color: #fff; white-space: nowrap; }
-        .ctx-opt:hover { background: var(--primary); color: #000; }
-
-        @media (max-width: 768px) {
-            .container { padding: 10px; zoom: 0.95; }
-            .grid-pads { grid-template-columns: repeat(2, 1fr); }
-            .master-strip { grid-template-columns: 1fr; gap: 10px; }
-            .page-tabs { flex-wrap: wrap; }
-        }
-        @media (max-width: 480px) {
-            .grid-pads { grid-template-columns: 1fr; }
-            .header-main { flex-direction: column; gap: 10px; }
-            .icon-actions { width: 100%; justify-content: center; }
-        }
-    </style>
+<style>
+body{
+margin:0;font-family:Arial,Helvetica,sans-serif;
+background:#050505;color:#eee;
+display:flex;justify-content:center;align-items:center;
+height:100vh
+}
+.container{
+width:95vw;max-width:1300px;
+background:#111;border-radius:10px;
+padding:15px;box-sizing:border-box
+}
+.header{
+display:flex;justify-content:space-between;
+align-items:center;border-bottom:1px solid #333;
+padding-bottom:10px
+}
+.brand{font-size:1.5rem;font-weight:800}
+.brand span{color:#00e5ff}
+.actions button{
+margin-left:8px;padding:8px 12px;
+font-weight:700;cursor:pointer
+}
+.tabs{margin:10px 0;display:flex;gap:10px}
+.tab{
+padding:6px 20px;border:2px solid #333;
+cursor:pointer;font-weight:700
+}
+.tab.active{background:#00e5ff;color:#000}
+.grid{
+display:grid;grid-template-columns:repeat(3,1fr);
+gap:10px
+}
+.pad{
+background:#1a1a1a;border:2px solid #333;
+border-radius:8px;padding:10px;
+height:130px;cursor:pointer;
+position:relative
+}
+.pad.active{border-color:#00ff88}
+.idx{position:absolute;top:6px;left:8px;color:#444}
+.title{text-align:center;font-weight:700;margin-top:22px}
+.menu{
+position:absolute;top:6px;right:8px;
+cursor:pointer;font-weight:bold
+}
+.ctx{
+position:absolute;top:25px;right:8px;
+background:#222;border:1px solid #555;
+display:none;flex-direction:column;
+z-index:10
+}
+.ctx div{
+padding:8px 14px;font-size:.75rem;
+cursor:pointer
+}
+.ctx div:hover{background:#00e5ff;color:#000}
+.volume{
+position:absolute;bottom:28px;left:10px;right:10px
+}
+.footer{
+position:absolute;bottom:6px;left:10px;right:10px;
+display:flex;justify-content:space-between;
+font-size:.75rem
+}
+.footer-bar{
+margin-top:10px;text-align:center;
+font-size:.7rem;color:#777
+}
+</style>
 </head>
-<body class="pg-A">
 
-<div id="alert"></div>
-
+<body>
 <div class="container">
-    <div class="header-main">
-        <div class="brand">MASTER<span>CONSOLE</span></div>
-        <div class="icon-actions">
-            <div class="action-wrapper"><div class="icon-btn" onclick="stopAll()"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4 14H8V8h8v8z"/></svg></div><div class="tooltip-text">STOP [0]</div></div>
-            <div class="action-wrapper"><div class="icon-btn" onclick="saveProject()"><svg viewBox="0 0 24 24"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg></div><div class="tooltip-text">SALVAR</div></div>
-            <div class="action-wrapper"><div class="icon-btn" onclick="document.getElementById('fileIn').click()"><svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg></div><div class="tooltip-text">ABRIR</div></div>
-            <div class="action-wrapper"><div class="icon-btn danger" onclick="confirmWipe()"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></div><div class="tooltip-text">LIMPAR</div></div>
-            <input type="file" id="fileIn" style="display:none" accept=".json" onchange="loadProject(event)">
-        </div>
-    </div>
 
-    <div class="top-row">
-        <div class="page-tabs">
-            <div class="tab active" data-pg="A" onclick="changePage('A')">BANCO A</div>
-            <div class="tab" data-pg="B" onclick="changePage('B')">BANCO B</div>
-            <div class="tab" data-pg="C" onclick="changePage('C')">BANCO C</div>
-        </div>
-        <div id="pg-status" style="font-size:0.85rem; font-weight:800; color:var(--primary);">MODO: BANCO A</div>
-    </div>
+<div class="header">
+<div class="brand">MASTER<span>CONSOLE</span></div>
+<div class="actions">
+<button onclick="stopAll()">STOP</button>
+<button onclick="saveProject()">SALVAR</button>
+<button onclick="fileLoad.click()">ABRIR</button>
+<button onclick="clearCurrentBank()">LIMPAR BANCO</button>
+<input type="file" id="fileLoad" accept=".json" hidden onchange="loadProject(event)">
+</div>
+</div>
 
-    <div class="master-strip">
-        <div class="vu-container"><div id="vu-fill"></div></div>
-        <div style="display:flex; align-items:center; gap:12px">
-            <span style="font-size:0.75rem; font-weight:800; color:var(--dim)">MASTER</span>
-            <input type="range" id="gainSlider" min="0" max="1.5" step="0.01" value="1.0" style="width: 120px; accent-color: var(--primary);">
-        </div>
-    </div>
+<div class="tabs">
+<div class="tab active" onclick="changeBank('A')">BANCO A</div>
+<div class="tab" onclick="changeBank('B')">BANCO B</div>
+<div class="tab" onclick="changeBank('C')">BANCO C</div>
+</div>
 
-    <div class="grid-pads" id="padGrid"></div>
+<div class="grid" id="grid"></div>
 
-    <div class="console-footer">
-        <div>NUMPAD [1-9]: PLAY | [0]: STOP ALL</div>
-        <div>
-            Desenvolvido por 
-            <a href="https://wa.me/5514991540084?text=Olá%20Helton,%20estou%20usando%20o%20Master%20Console%20e%20gostaria%20de%20deixar%20uma%20sugestão..." 
-               target="_blank" class="dev-link">
-               Helton Alves | Locutor Publicitário
-            </a>
-        </div>
-    </div>
+<div class="footer-bar">
+NUMPAD [1-9]: PLAY | [0]: STOP ALL<br>
+Desenvolvido por <strong style="color:#00e5ff">
+Helton Alves | Locutor Publicitário</strong>
+</div>
+
 </div>
 
 <script>
-    // FIX CRÍTICO: Ativa áudio com primeiro clique
-    let audioCtx, masterGain, analyser;
-    let sounds = {}; let activeSources = {}; let currentPage = 'A'; let db; let loops = {};
-    
-    function initAudio() {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            masterGain = audioCtx.createGain();
-            analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 1024;
-            masterGain.connect(analyser); 
-            analyser.connect(audioCtx.destination);
-            
-            // Configurar gain inicial
-            masterGain.gain.value = document.getElementById('gainSlider').value;
-            
-            updateVU();
-        }
-        return audioCtx;
-    }
-    
-    // Ativar áudio no primeiro clique
-    document.body.addEventListener('click', function initOnClick() {
-        if (!audioCtx || audioCtx.state === 'suspended') {
-            initAudio();
-            if(audioCtx.state === 'suspended') {
-                audioCtx.resume().then(() => {
-                    console.log('Master Console: Áudio ativado!');
-                    showAlert('SISTEMA ATIVADO');
-                });
-            }
-        }
-        // Remove o listener após primeiro clique
-        document.body.removeEventListener('click', initOnClick);
-    });
+const audioCtx=new AudioContext();
+let currentBank='A';
 
-    // Criar pads
-    const grid = document.getElementById('padGrid');
-    for (let i = 1; i <= 9; i++) {
-        const div = document.createElement('div');
-        div.className = 'pad'; div.id = `pad-${i}`;
-        div.innerHTML = `
-            <div class="p-idx">${i}</div>
-            <div class="pad-controls">
-                <button class="btn-loop" id="loop-${i}" onclick="toggleLoop(event, ${i})">
-                    <svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
-                </button>
-                <div class="p-menu-trigger" onclick="toggleCtx(event, ${i})">⋮</div>
-                <div class="ctx-menu" id="menu-${i}">
-                    <div class="ctx-opt" onclick="clickInput(${i})">📁 CARREGAR ÁUDIO</div>
-                    <div class="ctx-opt" style="color:#ff4d4d" onclick="clearSlot(${i})">🗑️ LIMPAR PAD</div>
-                </div>
-            </div>
-            <div class="prog-bar" id="prog-${i}"></div>
-            <div class="p-title" id="name-${i}">---</div>
-            <div class="p-footer"><span id="cur-${i}">00:00</span><span id="rem-${i}" style="color:#ff4d4d">00:00</span></div>
-            <input type="file" id="in-${i}" style="display:none" accept="audio/*" onchange="handleFile(event, ${i})">
-        `;
-        div.onclick = (e) => { 
-            if(!e.target.closest('.pad-controls') && !e.target.closest('.ctx-menu')) {
-                initAudio(); // Garante que áudio está ativo
-                playSound(i); 
-            }
-        };
-        grid.appendChild(div);
-    }
+const banks={
+A:{},B:{},C:{}
+};
 
-    // Banco de dados
-    const dbReq = indexedDB.open("StudioConsoleDB", 4);
-    dbReq.onupgradeneeded = function(e) {
-        db = e.target.result;
-        if (!db.objectStoreNames.contains('pads')) {
-            const store = db.createObjectStore('pads', { keyPath: 'uid' });
-            store.createIndex('page', 'page', { unique: false });
-        }
-    };
-    dbReq.onsuccess = (e) => { 
-        db = e.target.result; 
-        changePage('A'); 
-    };
+const sources={},gains={};
+const grid=document.getElementById('grid');
 
-    function showAlert(t) {
-        const a = document.getElementById('alert'); 
-        a.innerText = t; 
-        a.style.display = 'block';
-        setTimeout(() => a.style.display = 'none', 1200);
-    }
+for(let i=1;i<=9;i++){
+const p=document.createElement('div');
+p.className='pad';p.id='pad'+i;
+p.innerHTML=`
+<div class="idx">${i}</div>
+<div class="menu" onclick="toggleMenu(event,${i})">⋮</div>
+<div class="ctx" id="ctx${i}">
+<div onclick="loadAudio(${i})">📁 CARREGAR</div>
+<div onclick="clearPad(${i})">🗑️ LIMPAR</div>
+</div>
+<div class="title" id="title${i}">---</div>
+<div class="volume">
+<input type="range" min="0" max="1" step="0.01" value="1"
+oninput="setVolume(${i},this.value)">
+</div>
+<div class="footer">
+<span onclick="toggleLoop(${i})">🔁</span>
+</div>
+<input type="file" id="file${i}" accept="audio/*" hidden
+onchange="handleFile(event,${i})">
+`;
+p.onclick=e=>{
+if(!e.target.closest('.menu') && !e.target.closest('.ctx'))
+playPad(i);
+};
+grid.appendChild(p);
+}
 
-    function toggleLoop(e, id) {
-        e.stopPropagation();
-        const key = currentPage + id;
-        loops[key] = !loops[key];
-        document.getElementById(`loop-${id}`).classList.toggle('active', loops[key]);
-    }
+function toggleMenu(e,i){
+e.stopPropagation();
+document.querySelectorAll('.ctx')
+.forEach(c=>c.style.display='none');
+document.getElementById('ctx'+i).style.display='flex';
+}
+window.onclick=()=>document
+.querySelectorAll('.ctx')
+.forEach(c=>c.style.display='none');
 
-    async function changePage(p) {
-        stopAll();
-        currentPage = p;
-        document.body.className = `pg-${p}`;
-        document.getElementById('pg-status').innerText = `MODO: BANCO ${p}`;
-        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.pg === p));
-        
-        // Resetar visualização dos pads
-        for(let i = 1; i <= 9; i++) {
-            document.getElementById(`name-${i}`).innerText = "---";
-            document.getElementById(`rem-${i}`).innerText = "00:00";
-            document.getElementById(`prog-${i}`).style.width = "0%";
-            document.getElementById(`cur-${i}`).innerText = "00:00";
-            document.getElementById(`loop-${i}`).classList.toggle('active', !!loops[currentPage + i]);
-        }
+function loadAudio(i){
+document.getElementById('file'+i).click();
+}
 
-        // Limpar sons da página anterior
-        sounds = {};
-        
-        // CORREÇÃO CRÍTICA: Buscar apenas os sons da página atual
-        if (db) {
-            const tx = db.transaction("pads", "readonly");
-            const store = tx.objectStore("pads");
-            const index = store.index("page");
-            
-            // Usar getAll com range específico para a página
-            const request = index.getAll(currentPage);
-            
-            request.onsuccess = async (e) => {
-                const pageData = e.target.result;
-                for(let item of pageData) {
-                    try {
-                        const buffer = await audioCtx.decodeAudioData(item.data.slice(0));
-                        sounds[item.id] = { 
-                            buffer, 
-                            name: item.name, 
-                            duration: buffer.duration, 
-                            raw: item.data 
-                        };
-                        document.getElementById(`name-${item.id}`).innerText = item.name;
-                        document.getElementById(`rem-${item.id}`).innerText = formatTime(buffer.duration);
-                    } catch(err) {
-                        console.error("Erro ao carregar áudio:", err);
-                    }
-                }
-                showAlert(`BANCO ${currentPage} CARREGADO`);
-            };
-        }
-    }
+function handleFile(e,i){
+const file=e.target.files[0];
+const reader=new FileReader();
+reader.onload=()=>{
+audioCtx.decodeAudioData(reader.result,b=>{
+banks[currentBank][i]={
+buffer:b,name:file.name,vol:1,loop:false
+};
+updateUI();
+});
+};
+reader.readAsArrayBuffer(file);
+}
 
-    function playSound(id) {
-        if(!sounds[id]) {
-            showAlert(`PAD ${id} VAZIO`);
-            return;
-        }
-        
-        if(!audioCtx) initAudio();
-        
-        if(audioCtx.state === 'suspended') {
-            audioCtx.resume().then(() => {
-                playSound(id); // Tenta novamente após ativar
-            });
-            return;
-        }
-        
-        if(activeSources[id]) { 
-            stopSound(id); 
-            return; 
-        }
-        
-        try {
-            const src = audioCtx.createBufferSource();
-            src.buffer = sounds[id].buffer;
-            src.loop = !!loops[currentPage + id];
-            src.connect(masterGain);
-            const start = audioCtx.currentTime;
-            src.start(0); 
-            activeSources[id] = src;
-            document.getElementById(`pad-${id}`).classList.add('active');
-            
-            const animate = () => {
-                if(!activeSources[id]) return;
-                activeSources[id].loop = !!loops[currentPage + id];
-                let elapsed = (audioCtx.currentTime - start) % sounds[id].duration;
-                document.getElementById(`prog-${id}`).style.width = (elapsed / sounds[id].duration * 100) + "%";
-                document.getElementById(`cur-${id}`).innerText = formatTime(elapsed);
-                document.getElementById(`rem-${id}`).innerText = "-" + formatTime(sounds[id].duration - elapsed);
-                requestAnimationFrame(animate);
-            };
-            animate();
-            
-            src.onended = () => { 
-                if(!loops[currentPage + id]) stopSound(id); 
-                else {
-                    // Se for loop, reinicia
-                    setTimeout(() => {
-                        if(loops[currentPage + id] && activeSources[id]) {
-                            playSound(id);
-                        }
-                    }, 50);
-                }
-            };
-        } catch(err) {
-            console.error("Erro ao tocar:", err);
-            showAlert("ERRO AO TOCAR");
-        }
-    }
+function playPad(i){
+stopPad(i);
+const d=banks[currentBank][i];
+if(!d)return;
+const s=audioCtx.createBufferSource();
+const g=audioCtx.createGain();
+s.buffer=d.buffer;
+s.loop=d.loop;
+g.gain.value=d.vol;
+s.connect(g).connect(audioCtx.destination);
+s.start();
+sources[i]=s;gains[i]=g;
+document.getElementById('pad'+i).classList.add('active');
+s.onended=()=>document
+.getElementById('pad'+i).classList.remove('active');
+}
 
-    function stopSound(id) {
-        if(activeSources[id]) { 
-            try { 
-                activeSources[id].stop(); 
-            } catch(e) {} 
-            activeSources[id] = null; 
-        }
-        document.getElementById(`pad-${id}`).classList.remove('active');
-        document.getElementById(`prog-${id}`).style.width = "0%";
-        document.getElementById(`cur-${id}`).innerText = "00:00";
-        document.getElementById(`rem-${id}`).innerText = sounds[id] ? formatTime(sounds[id].duration) : "00:00";
-    }
+function stopPad(i){
+if(sources[i]){sources[i].stop();sources[i]=null;}
+}
+function stopAll(){Object.keys(sources).forEach(stopPad);}
 
-    function stopAll() { 
-        Object.keys(activeSources).forEach(id => stopSound(id)); 
-    }
+function setVolume(i,v){
+if(banks[currentBank][i])banks[currentBank][i].vol=v;
+if(gains[i])gains[i].gain.value=v;
+}
 
-    function formatTime(s) {
-        const m = Math.floor(s/60); 
-        const sc = Math.floor(s%60);
-        return `${m.toString().padStart(2,'0')}:${sc.toString().padStart(2,'0')}`;
-    }
+function toggleLoop(i){
+if(banks[currentBank][i])
+banks[currentBank][i].loop=!banks[currentBank][i].loop;
+}
 
-    window.addEventListener('keydown', (e) => {
-        if(e.key >= '1' && e.key <= '9') {
-            initAudio();
-            playSound(parseInt(e.key));
-        }
-        if(e.key === '0' || e.key === 'Escape') stopAll();
-    });
+function clearPad(i){
+stopPad(i);
+delete banks[currentBank][i];
+updateUI();
+}
 
-    async function handleFile(e, id) {
-        const file = e.target.files[0]; 
-        if(!file) return;
-        
-        // Verificar tamanho (máximo 10MB)
-        if(file.size > 10 * 1024 * 1024) {
-            showAlert("ARQUIVO MUITO GRANDE (MAX 10MB)");
-            return;
-        }
-        
-        try {
-            if (!audioCtx) initAudio();
-            const raw = await file.arrayBuffer();
-            const buffer = await audioCtx.decodeAudioData(raw.slice(0));
-            const name = file.name.replace(/\.[^/.]+$/, "").substring(0, 20); // Limita nome
-            
-            // CORREÇÃO: Salvar no banco de dados com identificador único
-            const uid = `${currentPage}-${id}`;
-            sounds[id] = { buffer, name, duration: buffer.duration, raw: raw };
-            
-            if (db) {
-                const tx = db.transaction("pads", "readwrite");
-                tx.objectStore("pads").put({ 
-                    uid: uid, 
-                    page: currentPage, 
-                    id: id, 
-                    name: name, 
-                    data: raw 
-                });
-            }
-            
-            document.getElementById(`name-${id}`).innerText = name;
-            document.getElementById(`rem-${id}`).innerText = formatTime(buffer.duration);
-            showAlert(`PAD ${id}: ${name}`);
-            
-            // Limpa o input para poder carregar o mesmo arquivo novamente
-            e.target.value = '';
-        } catch(err) {
-            console.error("Erro ao carregar arquivo:", err);
-            showAlert("ERRO NO ARQUIVO");
-        }
-    }
+function clearCurrentBank(){
+stopAll();
+banks[currentBank]={};
+updateUI();
+}
 
-    function clearSlot(id) {
-        stopSound(id); 
-        delete sounds[id];
-        
-        if (db) {
-            const uid = `${currentPage}-${id}`;
-            const tx = db.transaction("pads", "readwrite");
-            tx.objectStore("pads").delete(uid);
-        }
-        
-        document.getElementById(`name-${id}`).innerText = "---";
-        document.getElementById(`rem-${id}`).innerText = "00:00";
-        showAlert(`PAD ${id} LIMPO`);
-    }
+function changeBank(b){
+stopAll();
+currentBank=b;
+document.querySelectorAll('.tab')
+.forEach(t=>t.classList.remove('active'));
+document.querySelector(`.tab:nth-child(${b==='A'?1:b==='B'?2:3})`)
+.classList.add('active');
+updateUI();
+}
 
-    function confirmWipe() {
-        if (confirm("LIMPAR TODA A MEMÓRIA? Esta ação não pode ser desfeita.")) {
-            stopAll();
-            sounds = {};
-            loops = {};
-            
-            if (db) {
-                const tx = db.transaction("pads", "readwrite");
-                const store = tx.objectStore("pads");
-                store.clear(); 
-                tx.oncomplete = () => { 
-                    showAlert("MEMÓRIA RESETADA"); 
-                    changePage(currentPage); 
-                };
-            } else {
-                showAlert("MEMÓRIA RESETADA");
-                changePage(currentPage);
-            }
-        }
-    }
+function updateUI(){
+for(let i=1;i<=9;i++){
+document.getElementById('title'+i).innerText=
+banks[currentBank][i]?.name||'---';
+}
+}
 
-    function updateVU() {
-        if (!analyser) {
-            requestAnimationFrame(updateVU);
-            return;
-        }
-        
-        const data = new Float32Array(analyser.frequencyBinCount);
-        analyser.getFloatTimeDomainData(data);
-        let sum = 0; 
-        for(let a of data) sum += a*a;
-        let rms = Math.sqrt(sum/data.length);
-        let level = 0;
-        if (rms > 0) {
-            level = Math.max(0, Math.min(100, (((20 * Math.log10(rms)) + 48) / 48) * 100));
-        }
-        document.getElementById('vu-fill').style.width = level + "%";
-        requestAnimationFrame(updateVU);
-    }
+function saveProject(){
+const data={
+version:1,
+banks:Object.fromEntries(
+Object.entries(banks).map(([k,v])=>[
+k,
+Object.fromEntries(
+Object.entries(v).map(([i,p])=>[
+i,{name:p.name,vol:p.vol,loop:p.loop}
+])
+)
+])
+};
+const blob=new Blob([JSON.stringify(data,null,2)],
+{type:'application/json'});
+const a=document.createElement('a');
+a.href=URL.createObjectURL(blob);
+a.download='master-console.json';
+a.click();
+}
 
-    async function saveProject() {
-        if (!db) {
-            showAlert("BANCO DE DADOS NÃO DISPONÍVEL");
-            return;
-        }
-        
-        const tx = db.transaction("pads", "readonly");
-        const request = tx.objectStore("pads").getAll();
-        
-        request.onsuccess = (e) => {
-            const allData = e.target.result;
-            
-            // Processar dados para JSON
-            const processed = allData.map(item => {
-                let binary = ''; 
-                const bytes = new Uint8Array(item.data);
-                for (let i = 0; i < bytes.byteLength; i++) {
-                    binary += String.fromCharCode(bytes[i]);
-                }
-                return { 
-                    page: item.page, 
-                    id: item.id, 
-                    name: item.name, 
-                    data: btoa(binary) // Converter para base64
-                };
-            });
-            
-            // Criar blob com os dados
-            const jsonData = JSON.stringify(processed, null, 2);
-            const blob = new Blob([jsonData], { type: "application/json" });
-            
-            // CORREÇÃO: Criar link de download corretamente
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            
-            // Nome do arquivo com data
-            const date = new Date().toISOString().split('T')[0];
-            a.download = `MASTER_CONSOLE_${date}.json`;
-            
-            // Adicionar ao documento, clicar e remover
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            
-            // Liberar memória
-            setTimeout(() => URL.revokeObjectURL(url), 100);
-            
-            showAlert("PROJETO SALVO COM SUCESSO!");
-        };
-        
-        request.onerror = () => {
-            showAlert("ERRO AO SALVAR PROJETO");
-        };
-    }
+function loadProject(e){
+const file=e.target.files[0];
+const r=new FileReader();
+r.onload=()=>{
+const data=JSON.parse(r.result);
+for(const b of ['A','B','C']){
+banks[b]={};
+for(const i in data.banks[b]){
+banks[b][i]={...data.banks[b][i]};
+}
+}
+updateUI();
+};
+r.readAsText(file);
+}
 
-    async function loadProject(e) {
-        const file = e.target.files[0]; 
-        if(!file) return;
-        
-        if (!db) {
-            showAlert("BANCO DE DADOS NÃO DISPONÍVEL");
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = async (ev) => {
-            try {
-                const data = JSON.parse(ev.target.result);
-                const tx = db.transaction("pads", "readwrite");
-                const store = tx.objectStore("pads");
-                
-                // Limpar banco atual
-                store.clear();
-                
-                // Adicionar todos os dados do backup
-                for(let item of data) {
-                    const bin = Uint8Array.from(atob(item.data), c => c.charCodeAt(0)).buffer;
-                    
-                    // CORREÇÃO: Usar uid consistente
-                    const uid = `${item.page}-${item.id}`;
-                    
-                    store.put({ 
-                        uid: uid,
-                        page: item.page, 
-                        id: item.id, 
-                        name: item.name, 
-                        data: bin 
-                    });
-                }
-                
-                tx.oncomplete = () => { 
-                    showAlert("PROJETO RESTAURADO COM SUCESSO!"); 
-                    changePage('A'); 
-                };
-                
-                // Limpa o input
-                e.target.value = '';
-            } catch(err) {
-                console.error("Erro ao carregar projeto:", err);
-                showAlert("ERRO NO ARQUIVO DE BACKUP");
-            }
-        };
-        reader.readAsText(file);
-    }
-
-    function clickInput(id) { 
-        document.getElementById(`in-${id}`).click(); 
-    }
-    
-    function toggleCtx(e, id) { 
-        e.stopPropagation(); 
-        document.querySelectorAll('.ctx-menu').forEach(m => {
-            if(m.id !== `menu-${id}`) m.classList.remove('show');
-        });
-        document.getElementById(`menu-${id}`).classList.toggle('show');
-    }
-    
-    window.onclick = () => {
-        document.querySelectorAll('.ctx-menu').forEach(m => m.classList.remove('show'));
-    };
-    
-    document.getElementById('gainSlider').oninput = (e) => {
-        if(masterGain) masterGain.gain.value = parseFloat(e.target.value);
-    };
-    
-    // Inicialização automática
-    setTimeout(() => {
-        if (!audioCtx) {
-            initAudio();
-        }
-    }, 1000);
+document.addEventListener('keydown',e=>{
+if(e.key>='1'&&e.key<='9')playPad(+e.key);
+if(e.key==='0')stopAll();
+});
 </script>
 </body>
 </html>
