@@ -63,19 +63,18 @@
         .btn-loop svg { width: 18px; height: 18px; fill: currentColor; }
         .p-menu-trigger { color: var(--dim); font-size: 1.6rem; cursor: pointer; line-height: 0.6; font-weight: bold; }
         
-        .p-title { font-size: 1.1rem; font-weight: 800; color: var(--primary); text-align: center; margin-top: 22px; z-index: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 5px; }
+        .p-title { font-size: 1.1rem; font-weight: 800; color: var(--primary); text-align: center; margin-top: 22px; z-index: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .p-footer { margin-top: auto; display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 600; z-index: 2; }
         
         .console-footer { margin-top: 5px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 0.7rem; color: #555; font-weight: 600; }
         .dev-link { color: var(--primary); text-decoration: none; transition: 0.2s; font-weight: 800; border-bottom: 1px solid transparent; }
-        .dev-link:hover { border-color: var(--primary); filter: brightness(1.2); }
-
-        #alert { position: fixed; top: 15px; background: var(--primary); color: #000; padding: 10px 30px; border-radius: 8px; font-weight: 800; z-index: 9999; display: none; left: 50%; transform: translateX(-50%); font-size: 0.9rem; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
 
         .ctx-menu { position: absolute; top: 25px; right: 0; background: #252525; border: 1px solid #555; border-radius: 6px; display: none; flex-direction: column; z-index: 1000; box-shadow: 0 10px 30px #000; }
         .ctx-menu.show { display: flex; }
         .ctx-opt { padding: 12px 18px; font-size: 0.8rem; cursor: pointer; border-bottom: 1px solid #333; font-weight: 700; color: #fff; white-space: nowrap; }
         .ctx-opt:hover { background: var(--primary); color: #000; }
+
+        #alert { position: fixed; top: 15px; left: 50%; transform: translateX(-50%); background: var(--primary); color: #000; padding: 10px 30px; border-radius: 8px; font-weight: 800; z-index: 9999; display: none; box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body class="pg-A">
@@ -117,10 +116,7 @@
         <div>NUMPAD [1-9]: PLAY | [0]: STOP ALL</div>
         <div>
             Desenvolvido por 
-            <a href="https://wa.me/5514991540084?text=Olá%20Helton,%20estou%20usando%20o%20Master%20Console%20e%20gostaria%20de%20deixar%20uma%20sugestão..." 
-               target="_blank" class="dev-link">
-               Helton Alves | Locutor Publicitário
-            </a>
+            <a href="https://wa.me/5514991540084" target="_blank" class="dev-link">Helton Alves | Locutor Publicitário</a>
         </div>
     </div>
 </div>
@@ -159,23 +155,16 @@
         grid.appendChild(div);
     }
 
-    const dbReq = indexedDB.open("StudioConsoleDB", 5);
+    const dbReq = indexedDB.open("StudioConsoleDB", 6);
     dbReq.onupgradeneeded = (e) => {
-        let database = e.target.result;
-        if(!database.objectStoreNames.contains("pads")) database.createObjectStore("pads", {keyPath: "uid"});
+        db = e.target.result;
+        if(!db.objectStoreNames.contains("pads")) db.createObjectStore("pads", {keyPath: "uid"});
     };
     dbReq.onsuccess = (e) => { db = e.target.result; changePage('A'); };
 
     function showAlert(t) {
         const a = document.getElementById('alert'); a.innerText = t; a.style.display = 'block';
-        setTimeout(() => a.style.display = 'none', 1500);
-    }
-
-    function toggleLoop(e, id) {
-        e.stopPropagation();
-        const key = currentPage + id;
-        loops[key] = !loops[key];
-        document.getElementById(`loop-${id}`).classList.toggle('active', loops[key]);
+        setTimeout(() => a.style.display = 'none', 2000);
     }
 
     async function changePage(p) {
@@ -185,16 +174,18 @@
         document.getElementById('pg-status').innerText = `MODO: BANCO ${p}`;
         document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.pg === p));
         
+        // Limpa visual antes de carregar
         for(let i=1; i<=9; i++) {
             document.getElementById(`name-${i}`).innerText = "---";
             document.getElementById(`rem-${i}`).innerText = "00:00";
             document.getElementById(`prog-${i}`).style.width = "0%";
-            document.getElementById(`loop-${i}`).classList.toggle('active', !!loops[currentPage+i]);
+            document.getElementById(`loop-${i}`).classList.remove('active');
         }
 
-        const tx = db.transaction("pads", "readonly");
         sounds = {};
-        tx.objectStore("pads").getAll().onsuccess = async (e) => {
+        const tx = db.transaction("pads", "readonly");
+        const store = tx.objectStore("pads");
+        store.getAll().onsuccess = async (e) => {
             const pageData = e.target.result.filter(x => x.page === currentPage);
             for(let item of pageData) {
                 try {
@@ -202,9 +193,28 @@
                     sounds[item.id] = { buffer, name: item.name, duration: buffer.duration, raw: item.data };
                     document.getElementById(`name-${item.id}`).innerText = item.name;
                     document.getElementById(`rem-${item.id}`).innerText = formatTime(buffer.duration);
-                } catch(err) { console.error("Erro ao carregar pad", item.id); }
+                    if(loops[currentPage + item.id]) document.getElementById(`loop-${item.id}`).classList.add('active');
+                } catch(err) { console.error("Erro no pad", item.id); }
             }
         };
+    }
+
+    async function handleFile(e, id) {
+        const file = e.target.files[0]; if(!file) return;
+        const fileName = file.name.replace(/\.[^/.]+$/, ""); // Pega o nome do arquivo aqui!
+        const raw = await file.arrayBuffer();
+        
+        try {
+            const buffer = await audioCtx.decodeAudioData(raw.slice(0));
+            sounds[id] = { buffer, name: fileName, duration: buffer.duration, raw: raw };
+            
+            const tx = db.transaction("pads", "readwrite");
+            tx.objectStore("pads").put({ uid: currentPage+id, page: currentPage, id, name: fileName, data: raw });
+            
+            document.getElementById(`name-${id}`).innerText = fileName;
+            document.getElementById(`rem-${id}`).innerText = formatTime(buffer.duration);
+            showAlert("ÁUDIO CARREGADO!");
+        } catch(err) { showAlert("ERRO NO ÁUDIO"); }
     }
 
     function playSound(id) {
@@ -242,85 +252,28 @@
     }
 
     function stopAll() { Object.keys(activeSources).forEach(id => stopSound(id)); }
-
-    function formatTime(s) {
-        const m = Math.floor(s/60); const sc = Math.floor(s%60);
-        return `${m.toString().padStart(2,'0')}:${sc.toString().padStart(2,'0')}`;
-    }
-
-    window.addEventListener('keydown', (e) => {
-        if(e.key >= '1' && e.key <= '9') playSound(parseInt(e.key));
-        if(e.key === '0' || e.key === 'Escape') stopAll();
-    });
-
-    async function handleFile(e, id) {
-        const file = e.target.files[0]; if(!file) return;
-        const fileName = file.name.split('.').slice(0, -1).join('.') || file.name;
-        const raw = await file.arrayBuffer();
-        
-        try {
-            const buffer = await audioCtx.decodeAudioData(raw.slice(0));
-            sounds[id] = { buffer, name: fileName, duration: buffer.duration, raw: raw };
-            
-            const tx = db.transaction("pads", "readwrite");
-            tx.objectStore("pads").put({ uid: currentPage+id, page: currentPage, id, name: fileName, data: raw });
-            
-            document.getElementById(`name-${id}`).innerText = fileName;
-            document.getElementById(`rem-${id}`).innerText = formatTime(buffer.duration);
-            showAlert(`ÁUDIO CARREGADO: ${fileName}`);
-        } catch(err) { showAlert("ERRO AO PROCESSAR ÁUDIO"); }
-    }
-
-    function clearSlot(id) {
-        stopSound(id); delete sounds[id];
-        const tx = db.transaction("pads", "readwrite");
-        tx.objectStore("pads").delete(currentPage+id);
-        document.getElementById(`name-${id}`).innerText = "---";
-    }
-
-    function confirmWipe() {
-        if (confirm("LIMPAR TODA A MEMÓRIA?")) {
-            stopAll();
-            const tx = db.transaction("pads", "readwrite");
-            tx.objectStore("pads").clear(); 
-            tx.oncomplete = () => { sounds = {}; showAlert("MEMÓRIA RESETADA"); changePage(currentPage); };
-        }
-    }
-
-    function updateVU() {
-        if(!analyser) return;
-        const data = new Float32Array(analyser.frequencyBinCount);
-        analyser.getFloatTimeDomainData(data);
-        let sum = 0; for(let a of data) sum += a*a;
-        let rms = Math.sqrt(sum/data.length);
-        let level = Math.max(0, Math.min(100, (((20 * Math.log10(rms)) + 48) / 48) * 100));
-        document.getElementById('vu-fill').style.width = (level || 0) + "%";
-        requestAnimationFrame(updateVU);
-    }
-    updateVU();
+    function formatTime(s) { const m=Math.floor(s/60), sc=Math.floor(s%60); return `${m.toString().padStart(2,'0')}:${sc.toString().padStart(2,'0')}`; }
 
     function saveProject() {
         const tx = db.transaction("pads", "readonly");
         tx.objectStore("pads").getAll().onsuccess = (e) => {
-            const allPads = e.target.result;
-            if(allPads.length === 0) { showAlert("NÃO HÁ ÁUDIOS PARA SALVAR"); return; }
+            const data = e.target.result;
+            if(!data.length) return showAlert("BANCO VAZIO!");
             
-            const processed = allPads.map(item => {
-                let binary = '';
+            const backup = data.map(item => {
                 const bytes = new Uint8Array(item.data);
+                let binary = '';
                 for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
                 return { page: item.page, id: item.id, name: item.name, data: btoa(binary) };
             });
 
-            const blob = new Blob([JSON.stringify(processed)], {type: "application/json"});
+            const blob = new Blob([JSON.stringify(backup)], {type: "application/json"});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
-            a.download = `CONSOLE_BACKUP_${new Date().toISOString().slice(0,10)}.json`;
-            document.body.appendChild(a);
+            a.href = url; a.download = "MASTER_BACKUP.json";
             a.click();
-            setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-            showAlert("BACKUP GERADO COM SUCESSO");
+            URL.revokeObjectURL(url);
+            showAlert("PALETA SALVA!");
         };
     }
 
@@ -328,29 +281,37 @@
         const file = e.target.files[0]; if(!file) return;
         const reader = new FileReader();
         reader.onload = async (ev) => {
-            try {
-                const data = JSON.parse(ev.target.result);
-                const tx = db.transaction("pads", "readwrite");
-                const store = tx.objectStore("pads");
-                store.clear();
-                data.forEach(item => {
-                    const bin = Uint8Array.from(atob(item.data), c => c.charCodeAt(0)).buffer;
-                    store.put({ uid: item.page+item.id, page: item.page, id: item.id, name: item.name, data: bin });
-                });
-                tx.oncomplete = () => { showAlert("PROJETO RESTAURADO"); changePage('A'); };
-            } catch(err) { showAlert("ERRO AO ABRIR ARQUIVO"); }
+            const data = JSON.parse(ev.target.result);
+            const tx = db.transaction("pads", "readwrite");
+            const store = tx.objectStore("pads");
+            store.clear();
+            data.forEach(item => {
+                const bin = Uint8Array.from(atob(item.data), c => c.charCodeAt(0)).buffer;
+                store.put({ uid: item.page+item.id, page: item.page, id: item.id, name: item.name, data: bin });
+            });
+            tx.oncomplete = () => { showAlert("BACKUP CARREGADO!"); changePage('A'); };
         };
         reader.readAsText(file);
     }
 
+    function toggleLoop(e, id) { e.stopPropagation(); loops[currentPage+id] = !loops[currentPage+id]; document.getElementById(`loop-${id}`).classList.toggle('active'); }
+    function clearSlot(id) { stopSound(id); delete sounds[id]; const tx = db.transaction("pads", "readwrite"); tx.objectStore("pads").delete(currentPage+id); document.getElementById(`name-${id}`).innerText = "---"; }
+    function confirmWipe() { if(confirm("LIMPAR TUDO?")) { const tx = db.transaction("pads", "readwrite"); tx.objectStore("pads").clear(); tx.oncomplete = () => location.reload(); } }
     function clickInput(id) { document.getElementById(`in-${id}`).click(); }
-    function toggleCtx(e, id) { 
-        e.stopPropagation(); 
-        document.querySelectorAll('.ctx-menu').forEach(m => m.id !== `menu-${id}` && m.classList.remove('show'));
-        document.getElementById(`menu-${id}`).classList.toggle('show');
-    }
+    function toggleCtx(e, id) { e.stopPropagation(); document.querySelectorAll('.ctx-menu').forEach(m => m.id !== `menu-${id}` && m.classList.remove('show')); document.getElementById(`menu-${id}`).classList.toggle('show'); }
     window.onclick = () => document.querySelectorAll('.ctx-menu').forEach(m => m.classList.remove('show'));
     document.getElementById('gainSlider').oninput = (e) => masterGain.gain.value = e.target.value;
+    window.addEventListener('keydown', (e) => { if(e.key >= '1' && e.key <= '9') playSound(parseInt(e.key)); if(e.key === '0' || e.key === 'Escape') stopAll(); });
+    
+    function updateVU() {
+        const data = new Float32Array(analyser.frequencyBinCount);
+        analyser.getFloatTimeDomainData(data);
+        let sum = 0; for(let a of data) sum += a*a;
+        let level = Math.max(0, Math.min(100, (((20 * Math.log10(Math.sqrt(sum/data.length))) + 48) / 48) * 100));
+        document.getElementById('vu-fill').style.width = (level || 0) + "%";
+        requestAnimationFrame(updateVU);
+    }
+    updateVU();
 </script>
 </body>
 </html>
