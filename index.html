@@ -22,14 +22,14 @@
             font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text);
             display: flex; justify-content: center; align-items: center;
             min-height: 100vh; margin: 0; padding: 10px;
-            overflow: auto; /* MUDADO: permite scroll se necessário */
+            overflow: auto;
         }
 
         .container {
             background: var(--card); padding: 12px 25px; border-radius: 12px;
             width: 100%; max-width: 1350px; border: 1px solid #333;
             box-shadow: 0 0 60px rgba(0,0,0,1); display: flex; flex-direction: column; gap: 8px;
-            margin: 10px 0; /* Adicionado margem */
+            margin: 10px 0;
         }
 
         .header-main { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; padding-bottom: 8px; }
@@ -97,7 +97,6 @@
         .ctx-opt { padding: 10px 18px; font-size: 0.8rem; cursor: pointer; border-bottom: 1px solid #333; font-weight: 700; color: #fff; white-space: nowrap; }
         .ctx-opt:hover { background: var(--primary); color: #000; }
 
-        /* RESPONSIVO */
         @media (max-width: 768px) {
             .container { padding: 10px; zoom: 0.95; }
             .grid-pads { grid-template-columns: repeat(2, 1fr); }
@@ -187,9 +186,7 @@
             if(audioCtx.state === 'suspended') {
                 audioCtx.resume().then(() => {
                     console.log('Master Console: Áudio ativado!');
-                    document.getElementById('alert').innerText = 'SISTEMA ATIVADO';
-                    document.getElementById('alert').style.display = 'block';
-                    setTimeout(() => document.getElementById('alert').style.display = 'none', 1000);
+                    showAlert('SISTEMA ATIVADO');
                 });
             }
         }
@@ -243,7 +240,9 @@
     };
 
     function showAlert(t) {
-        const a = document.getElementById('alert'); a.innerText = t; a.style.display = 'block';
+        const a = document.getElementById('alert'); 
+        a.innerText = t; 
+        a.style.display = 'block';
         setTimeout(() => a.style.display = 'none', 1200);
     }
 
@@ -261,28 +260,45 @@
         document.getElementById('pg-status').innerText = `MODO: BANCO ${p}`;
         document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.pg === p));
         
-        for(let i=1; i<=9; i++) {
+        // Resetar visualização dos pads
+        for(let i = 1; i <= 9; i++) {
             document.getElementById(`name-${i}`).innerText = "---";
             document.getElementById(`rem-${i}`).innerText = "00:00";
             document.getElementById(`prog-${i}`).style.width = "0%";
-            document.getElementById(`loop-${i}`).classList.toggle('active', !!loops[currentPage+i]);
+            document.getElementById(`cur-${i}`).innerText = "00:00";
+            document.getElementById(`loop-${i}`).classList.toggle('active', !!loops[currentPage + i]);
         }
 
+        // Limpar sons da página anterior
+        sounds = {};
+        
+        // CORREÇÃO CRÍTICA: Buscar apenas os sons da página atual
         if (db) {
             const tx = db.transaction("pads", "readonly");
-            sounds = {};
-            tx.objectStore("pads").getAll().onsuccess = async (e) => {
-                const pageData = e.target.result.filter(x => x.page === currentPage);
+            const store = tx.objectStore("pads");
+            const index = store.index("page");
+            
+            // Usar getAll com range específico para a página
+            const request = index.getAll(currentPage);
+            
+            request.onsuccess = async (e) => {
+                const pageData = e.target.result;
                 for(let item of pageData) {
                     try {
                         const buffer = await audioCtx.decodeAudioData(item.data.slice(0));
-                        sounds[item.id] = { buffer, name: item.name, duration: buffer.duration, raw: item.data };
+                        sounds[item.id] = { 
+                            buffer, 
+                            name: item.name, 
+                            duration: buffer.duration, 
+                            raw: item.data 
+                        };
                         document.getElementById(`name-${item.id}`).innerText = item.name;
                         document.getElementById(`rem-${item.id}`).innerText = formatTime(buffer.duration);
                     } catch(err) {
                         console.error("Erro ao carregar áudio:", err);
                     }
                 }
+                showAlert(`BANCO ${currentPage} CARREGADO`);
             };
         }
     }
@@ -347,9 +363,9 @@
 
     function stopSound(id) {
         if(activeSources[id]) { 
-            try{ 
+            try { 
                 activeSources[id].stop(); 
-            } catch(e){} 
+            } catch(e) {} 
             activeSources[id] = null; 
         }
         document.getElementById(`pad-${id}`).classList.remove('active');
@@ -387,16 +403,19 @@
         }
         
         try {
+            if (!audioCtx) initAudio();
             const raw = await file.arrayBuffer();
             const buffer = await audioCtx.decodeAudioData(raw.slice(0));
             const name = file.name.replace(/\.[^/.]+$/, "").substring(0, 20); // Limita nome
             
+            // CORREÇÃO: Salvar no banco de dados com identificador único
+            const uid = `${currentPage}-${id}`;
             sounds[id] = { buffer, name, duration: buffer.duration, raw: raw };
             
             if (db) {
                 const tx = db.transaction("pads", "readwrite");
                 tx.objectStore("pads").put({ 
-                    uid: currentPage+id, 
+                    uid: uid, 
                     page: currentPage, 
                     id: id, 
                     name: name, 
@@ -421,8 +440,9 @@
         delete sounds[id];
         
         if (db) {
+            const uid = `${currentPage}-${id}`;
             const tx = db.transaction("pads", "readwrite");
-            tx.objectStore("pads").delete(currentPage+id);
+            tx.objectStore("pads").delete(uid);
         }
         
         document.getElementById(`name-${id}`).innerText = "---";
@@ -477,23 +497,52 @@
         }
         
         const tx = db.transaction("pads", "readonly");
-        tx.objectStore("pads").getAll().onsuccess = (e) => {
-            const processed = e.target.result.map(item => {
+        const request = tx.objectStore("pads").getAll();
+        
+        request.onsuccess = (e) => {
+            const allData = e.target.result;
+            
+            // Processar dados para JSON
+            const processed = allData.map(item => {
                 let binary = ''; 
                 const bytes = new Uint8Array(item.data);
-                for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-                return { page: item.page, id: item.id, name: item.name, data: btoa(binary) };
+                for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                return { 
+                    page: item.page, 
+                    id: item.id, 
+                    name: item.name, 
+                    data: btoa(binary) // Converter para base64
+                };
             });
             
-            const blob = new Blob([JSON.stringify(processed)], {type: "application/json"});
-            const a = document.createElement('a'); 
-            a.href = URL.createObjectURL(blob);
-            a.download = `MASTER_CONSOLE_${new Date().toISOString().slice(0,10)}.json`; 
+            // Criar blob com os dados
+            const jsonData = JSON.stringify(processed, null, 2);
+            const blob = new Blob([jsonData], { type: "application/json" });
+            
+            // CORREÇÃO: Criar link de download corretamente
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // Nome do arquivo com data
+            const date = new Date().toISOString().split('T')[0];
+            a.download = `MASTER_CONSOLE_${date}.json`;
+            
+            // Adicionar ao documento, clicar e remover
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             
-            showAlert("PROJETO SALVO!");
+            // Liberar memória
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+            
+            showAlert("PROJETO SALVO COM SUCESSO!");
+        };
+        
+        request.onerror = () => {
+            showAlert("ERRO AO SALVAR PROJETO");
         };
     }
 
@@ -512,12 +561,19 @@
                 const data = JSON.parse(ev.target.result);
                 const tx = db.transaction("pads", "readwrite");
                 const store = tx.objectStore("pads");
+                
+                // Limpar banco atual
                 store.clear();
                 
+                // Adicionar todos os dados do backup
                 for(let item of data) {
                     const bin = Uint8Array.from(atob(item.data), c => c.charCodeAt(0)).buffer;
+                    
+                    // CORREÇÃO: Usar uid consistente
+                    const uid = `${item.page}-${item.id}`;
+                    
                     store.put({ 
-                        uid: item.page+item.id, 
+                        uid: uid,
                         page: item.page, 
                         id: item.id, 
                         name: item.name, 
@@ -526,7 +582,7 @@
                 }
                 
                 tx.oncomplete = () => { 
-                    showAlert("PROJETO RESTAURADO!"); 
+                    showAlert("PROJETO RESTAURADO COM SUCESSO!"); 
                     changePage('A'); 
                 };
                 
