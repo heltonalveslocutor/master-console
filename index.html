@@ -52,23 +52,10 @@
         #vu-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #00ff88 70%, #ffcc00 85%, #ff3b3b 100%); transition: width 0.07s; }
 
         .grid-pads { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-        
-        .pad { 
-            background: var(--pad-bg); height: 115px; border-radius: 10px; 
-            border: 2px solid #333; position: relative; cursor: pointer; 
-            display: flex; flex-direction: column; padding: 10px 15px; 
-            box-sizing: border-box; transition: 0.15s;
-            /* overflow@hidden removido para permitir que o menu flutue */
-        }
+        .pad { background: var(--pad-bg); height: 115px; border-radius: 10px; border: 2px solid #333; position: relative; cursor: pointer; display: flex; flex-direction: column; padding: 10px 15px; box-sizing: border-box; transition: 0.15s; }
         .pad.active { border-color: var(--accent); background: #080808; }
 
-        .prog-bar { 
-            position: absolute; top: 0; left: 0; height: 100%; width: 0%; 
-            background: rgba(0, 255, 136, 0.1); border-right: 3px solid var(--accent); 
-            pointer-events: none; z-index: 1; 
-            border-radius: 8px 0 0 8px; 
-        }
-
+        .prog-bar { position: absolute; top: 0; left: 0; height: 100%; width: 0%; background: rgba(0, 255, 136, 0.1); border-right: 3px solid var(--accent); pointer-events: none; z-index: 1; border-radius: 8px 0 0 8px; }
         .p-idx { position: absolute; top: 8px; left: 12px; font-size: 0.9rem; font-weight: 800; color: #444; }
         .pad-controls { position: absolute; top: 6px; right: 10px; display: flex; gap: 8px; z-index: 10; }
         .btn-loop { background: none; border: none; color: #555; cursor: pointer; padding: 4px; display: flex; }
@@ -76,26 +63,18 @@
         .btn-loop svg { width: 18px; height: 18px; fill: currentColor; }
         .p-menu-trigger { color: var(--dim); font-size: 1.6rem; cursor: pointer; line-height: 0.6; font-weight: bold; }
         
-        .p-title { font-size: 1.2rem; font-weight: 800; color: var(--primary); text-align: center; margin-top: 18px; z-index: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .p-footer { margin-top: auto; display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: 600; z-index: 2; }
+        .p-title { font-size: 1.1rem; font-weight: 800; color: var(--primary); text-align: center; margin-top: 22px; z-index: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 5px; }
+        .p-footer { margin-top: auto; display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 600; z-index: 2; }
         
         .console-footer { margin-top: 5px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 0.7rem; color: #555; font-weight: 600; }
-
-        /* NOME COM COR DE DESTAQUE DINÂMICA */
         .dev-link { color: var(--primary); text-decoration: none; transition: 0.2s; font-weight: 800; border-bottom: 1px solid transparent; }
         .dev-link:hover { border-color: var(--primary); filter: brightness(1.2); }
 
-        #alert { position: fixed; top: 15px; background: var(--primary); color: #000; padding: 10px 30px; border-radius: 8px; font-weight: 800; z-index: 9999; display: none; left: 50%; transform: translateX(-50%); font-size: 0.9rem; }
+        #alert { position: fixed; top: 15px; background: var(--primary); color: #000; padding: 10px 30px; border-radius: 8px; font-weight: 800; z-index: 9999; display: none; left: 50%; transform: translateX(-50%); font-size: 0.9rem; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
 
-        /* CORREÇÃO DO MENU: Agora ele "pula" para fora do Pad */
-        .ctx-menu { 
-            position: absolute; top: 25px; right: 0; background: #252525; 
-            border: 1px solid #555; border-radius: 6px; display: none; 
-            flex-direction: column; z-index: 1000; 
-            box-shadow: 0 10px 30px #000;
-        }
+        .ctx-menu { position: absolute; top: 25px; right: 0; background: #252525; border: 1px solid #555; border-radius: 6px; display: none; flex-direction: column; z-index: 1000; box-shadow: 0 10px 30px #000; }
         .ctx-menu.show { display: flex; }
-        .ctx-opt { padding: 10px 18px; font-size: 0.8rem; cursor: pointer; border-bottom: 1px solid #333; font-weight: 700; color: #fff; white-space: nowrap; }
+        .ctx-opt { padding: 12px 18px; font-size: 0.8rem; cursor: pointer; border-bottom: 1px solid #333; font-weight: 700; color: #fff; white-space: nowrap; }
         .ctx-opt:hover { background: var(--primary); color: #000; }
     </style>
 </head>
@@ -180,12 +159,16 @@
         grid.appendChild(div);
     }
 
-    const dbReq = indexedDB.open("StudioConsoleDB", 4);
+    const dbReq = indexedDB.open("StudioConsoleDB", 5);
+    dbReq.onupgradeneeded = (e) => {
+        let database = e.target.result;
+        if(!database.objectStoreNames.contains("pads")) database.createObjectStore("pads", {keyPath: "uid"});
+    };
     dbReq.onsuccess = (e) => { db = e.target.result; changePage('A'); };
 
     function showAlert(t) {
         const a = document.getElementById('alert'); a.innerText = t; a.style.display = 'block';
-        setTimeout(() => a.style.display = 'none', 1200);
+        setTimeout(() => a.style.display = 'none', 1500);
     }
 
     function toggleLoop(e, id) {
@@ -214,10 +197,12 @@
         tx.objectStore("pads").getAll().onsuccess = async (e) => {
             const pageData = e.target.result.filter(x => x.page === currentPage);
             for(let item of pageData) {
-                const buffer = await audioCtx.decodeAudioData(item.data.slice(0));
-                sounds[item.id] = { buffer, name: item.name, duration: buffer.duration, raw: item.data };
-                document.getElementById(`name-${item.id}`).innerText = item.name;
-                document.getElementById(`rem-${item.id}`).innerText = formatTime(buffer.duration);
+                try {
+                    const buffer = await audioCtx.decodeAudioData(item.data.slice(0));
+                    sounds[item.id] = { buffer, name: item.name, duration: buffer.duration, raw: item.data };
+                    document.getElementById(`name-${item.id}`).innerText = item.name;
+                    document.getElementById(`rem-${item.id}`).innerText = formatTime(buffer.duration);
+                } catch(err) { console.error("Erro ao carregar pad", item.id); }
             }
         };
     }
@@ -270,14 +255,20 @@
 
     async function handleFile(e, id) {
         const file = e.target.files[0]; if(!file) return;
+        const fileName = file.name.split('.').slice(0, -1).join('.') || file.name;
         const raw = await file.arrayBuffer();
-        const buffer = await audioCtx.decodeAudioData(raw.slice(0));
-        const name = file.name.replace(/\.[^/.]+$/, "");
-        sounds[id] = { buffer, name, duration: buffer.duration, raw: raw };
-        const tx = db.transaction("pads", "readwrite");
-        tx.objectStore("pads").put({ uid: currentPage+id, page: currentPage, id, name, data: raw });
-        document.getElementById(`name-${id}`).innerText = name;
-        document.getElementById(`rem-${id}`).innerText = formatTime(buffer.duration);
+        
+        try {
+            const buffer = await audioCtx.decodeAudioData(raw.slice(0));
+            sounds[id] = { buffer, name: fileName, duration: buffer.duration, raw: raw };
+            
+            const tx = db.transaction("pads", "readwrite");
+            tx.objectStore("pads").put({ uid: currentPage+id, page: currentPage, id, name: fileName, data: raw });
+            
+            document.getElementById(`name-${id}`).innerText = fileName;
+            document.getElementById(`rem-${id}`).innerText = formatTime(buffer.duration);
+            showAlert(`ÁUDIO CARREGADO: ${fileName}`);
+        } catch(err) { showAlert("ERRO AO PROCESSAR ÁUDIO"); }
     }
 
     function clearSlot(id) {
@@ -291,50 +282,63 @@
         if (confirm("LIMPAR TODA A MEMÓRIA?")) {
             stopAll();
             const tx = db.transaction("pads", "readwrite");
-            const store = tx.objectStore("pads");
-            store.clear(); 
+            tx.objectStore("pads").clear(); 
             tx.oncomplete = () => { sounds = {}; showAlert("MEMÓRIA RESETADA"); changePage(currentPage); };
         }
     }
 
     function updateVU() {
+        if(!analyser) return;
         const data = new Float32Array(analyser.frequencyBinCount);
         analyser.getFloatTimeDomainData(data);
         let sum = 0; for(let a of data) sum += a*a;
         let rms = Math.sqrt(sum/data.length);
         let level = Math.max(0, Math.min(100, (((20 * Math.log10(rms)) + 48) / 48) * 100));
-        document.getElementById('vu-fill').style.width = level + "%";
+        document.getElementById('vu-fill').style.width = (level || 0) + "%";
         requestAnimationFrame(updateVU);
     }
     updateVU();
 
-    async function saveProject() {
+    function saveProject() {
         const tx = db.transaction("pads", "readonly");
         tx.objectStore("pads").getAll().onsuccess = (e) => {
-            const processed = e.target.result.map(item => {
-                let binary = ''; const bytes = new Uint8Array(item.data);
+            const allPads = e.target.result;
+            if(allPads.length === 0) { showAlert("NÃO HÁ ÁUDIOS PARA SALVAR"); return; }
+            
+            const processed = allPads.map(item => {
+                let binary = '';
+                const bytes = new Uint8Array(item.data);
                 for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
                 return { page: item.page, id: item.id, name: item.name, data: btoa(binary) };
             });
+
             const blob = new Blob([JSON.stringify(processed)], {type: "application/json"});
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-            a.download = `MASTER_CONSOLE_BACKUP.json`; a.click();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `CONSOLE_BACKUP_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+            showAlert("BACKUP GERADO COM SUCESSO");
         };
     }
 
-    async function loadProject(e) {
+    function loadProject(e) {
         const file = e.target.files[0]; if(!file) return;
         const reader = new FileReader();
         reader.onload = async (ev) => {
-            const data = JSON.parse(ev.target.result);
-            const tx = db.transaction("pads", "readwrite");
-            const store = tx.objectStore("pads");
-            store.clear();
-            for(let item of data) {
-                const bin = Uint8Array.from(atob(item.data), c => c.charCodeAt(0)).buffer;
-                store.put({ uid: item.page+item.id, page: item.page, id: item.id, name: item.name, data: bin });
-            }
-            tx.oncomplete = () => { showAlert("PROJETO RESTAURADO"); changePage('A'); };
+            try {
+                const data = JSON.parse(ev.target.result);
+                const tx = db.transaction("pads", "readwrite");
+                const store = tx.objectStore("pads");
+                store.clear();
+                data.forEach(item => {
+                    const bin = Uint8Array.from(atob(item.data), c => c.charCodeAt(0)).buffer;
+                    store.put({ uid: item.page+item.id, page: item.page, id: item.id, name: item.name, data: bin });
+                });
+                tx.oncomplete = () => { showAlert("PROJETO RESTAURADO"); changePage('A'); };
+            } catch(err) { showAlert("ERRO AO ABRIR ARQUIVO"); }
         };
         reader.readAsText(file);
     }
