@@ -158,7 +158,7 @@
 </div>
 
 <script>
-    // FIX CRÍTICO: Ativa áudio com primeiro clique
+    // Sistema de Áudio
     let audioCtx, masterGain, analyser;
     let sounds = {}; let activeSources = {}; let currentPage = 'A'; let db; let loops = {};
     
@@ -170,10 +170,7 @@
             analyser.fftSize = 1024;
             masterGain.connect(analyser); 
             analyser.connect(audioCtx.destination);
-            
-            // Configurar gain inicial
             masterGain.gain.value = document.getElementById('gainSlider').value;
-            
             updateVU();
         }
         return audioCtx;
@@ -183,18 +180,12 @@
     document.body.addEventListener('click', function initOnClick() {
         if (!audioCtx || audioCtx.state === 'suspended') {
             initAudio();
-            if(audioCtx.state === 'suspended') {
-                audioCtx.resume().then(() => {
-                    console.log('Master Console: Áudio ativado!');
-                    showAlert('SISTEMA ATIVADO');
-                });
-            }
+            if(audioCtx.state === 'suspended') audioCtx.resume();
         }
-        // Remove o listener após primeiro clique
         document.body.removeEventListener('click', initOnClick);
     });
 
-    // Criar pads
+    // Criar os 9 pads
     const grid = document.getElementById('padGrid');
     for (let i = 1; i <= 9; i++) {
         const div = document.createElement('div');
@@ -218,25 +209,31 @@
         `;
         div.onclick = (e) => { 
             if(!e.target.closest('.pad-controls') && !e.target.closest('.ctx-menu')) {
-                initAudio(); // Garante que áudio está ativo
+                initAudio();
                 playSound(i); 
             }
         };
         grid.appendChild(div);
     }
 
-    // Banco de dados
-    const dbReq = indexedDB.open("StudioConsoleDB", 4);
+    // CORREÇÃO 1: Configurar o banco de dados com índice por página
+    const dbReq = indexedDB.open("MasterConsoleDB_v2", 1); // Versão nova para atualizar esquema
     dbReq.onupgradeneeded = function(e) {
+        console.log("Criando/atualizando banco de dados...");
         db = e.target.result;
         if (!db.objectStoreNames.contains('pads')) {
             const store = db.createObjectStore('pads', { keyPath: 'uid' });
-            store.createIndex('page', 'page', { unique: false });
+            store.createIndex('page_idx', 'page', { unique: false }); // Índice para buscar por página
         }
     };
     dbReq.onsuccess = (e) => { 
         db = e.target.result; 
+        console.log("Banco de dados pronto.");
         changePage('A'); 
+    };
+    dbReq.onerror = (e) => { 
+        console.error("Erro ao abrir banco de dados:", e.target.error); 
+        showAlert("ERRO NO BANCO DE DADOS"); 
     };
 
     function showAlert(t) {
@@ -251,8 +248,10 @@
         const key = currentPage + id;
         loops[key] = !loops[key];
         document.getElementById(`loop-${id}`).classList.toggle('active', loops[key]);
+        showAlert(`PAD ${id}: LOOP ${loops[key] ? 'ON' : 'OFF'}`);
     }
 
+    // CORREÇÃO 2: Buscar dados APENAS da página atual
     async function changePage(p) {
         stopAll();
         currentPage = p;
@@ -260,7 +259,7 @@
         document.getElementById('pg-status').innerText = `MODO: BANCO ${p}`;
         document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.pg === p));
         
-        // Resetar visualização dos pads
+        // Resetar visualização
         for(let i = 1; i <= 9; i++) {
             document.getElementById(`name-${i}`).innerText = "---";
             document.getElementById(`rem-${i}`).innerText = "00:00";
@@ -269,36 +268,40 @@
             document.getElementById(`loop-${i}`).classList.toggle('active', !!loops[currentPage + i]);
         }
 
-        // Limpar sons da página anterior
-        sounds = {};
+        sounds = {}; // Limpar cache de sons
         
-        // CORREÇÃO CRÍTICA: Buscar apenas os sons da página atual
         if (db) {
             const tx = db.transaction("pads", "readonly");
             const store = tx.objectStore("pads");
-            const index = store.index("page");
+            const index = store.index("page_idx"); // Usar o índice por página
             
-            // Usar getAll com range específico para a página
+            // CORREÇÃO CHAVE: Buscar SOMENTE os registros onde 'page' = página atual
             const request = index.getAll(currentPage);
             
             request.onsuccess = async (e) => {
                 const pageData = e.target.result;
+                console.log(`Carregando Banco ${p}:`, pageData.length, "áudio(s)");
+                
                 for(let item of pageData) {
                     try {
+                        if (!audioCtx) initAudio();
                         const buffer = await audioCtx.decodeAudioData(item.data.slice(0));
                         sounds[item.id] = { 
                             buffer, 
                             name: item.name, 
-                            duration: buffer.duration, 
-                            raw: item.data 
+                            duration: buffer.duration
                         };
                         document.getElementById(`name-${item.id}`).innerText = item.name;
                         document.getElementById(`rem-${item.id}`).innerText = formatTime(buffer.duration);
                     } catch(err) {
-                        console.error("Erro ao carregar áudio:", err);
+                        console.error("Erro ao decodificar áudio:", err);
                     }
                 }
-                showAlert(`BANCO ${currentPage} CARREGADO`);
+                showAlert(`BANCO ${p} PRONTO`);
+            };
+            
+            request.onerror = (e) => {
+                console.error("Erro ao buscar dados:", e.target.error);
             };
         }
     }
@@ -310,11 +313,8 @@
         }
         
         if(!audioCtx) initAudio();
-        
         if(audioCtx.state === 'suspended') {
-            audioCtx.resume().then(() => {
-                playSound(id); // Tenta novamente após ativar
-            });
+            audioCtx.resume().then(() => playSound(id));
             return;
         }
         
@@ -335,7 +335,6 @@
             
             const animate = () => {
                 if(!activeSources[id]) return;
-                activeSources[id].loop = !!loops[currentPage + id];
                 let elapsed = (audioCtx.currentTime - start) % sounds[id].duration;
                 document.getElementById(`prog-${id}`).style.width = (elapsed / sounds[id].duration * 100) + "%";
                 document.getElementById(`cur-${id}`).innerText = formatTime(elapsed);
@@ -346,14 +345,6 @@
             
             src.onended = () => { 
                 if(!loops[currentPage + id]) stopSound(id); 
-                else {
-                    // Se for loop, reinicia
-                    setTimeout(() => {
-                        if(loops[currentPage + id] && activeSources[id]) {
-                            playSound(id);
-                        }
-                    }, 50);
-                }
             };
         } catch(err) {
             console.error("Erro ao tocar:", err);
@@ -363,9 +354,7 @@
 
     function stopSound(id) {
         if(activeSources[id]) { 
-            try { 
-                activeSources[id].stop(); 
-            } catch(e) {} 
+            try{ activeSources[id].stop(); } catch(e){} 
             activeSources[id] = null; 
         }
         document.getElementById(`pad-${id}`).classList.remove('active');
@@ -392,11 +381,11 @@
         if(e.key === '0' || e.key === 'Escape') stopAll();
     });
 
+    // CORREÇÃO 3: Salvar com UID único que inclui a página
     async function handleFile(e, id) {
         const file = e.target.files[0]; 
         if(!file) return;
         
-        // Verificar tamanho (máximo 10MB)
         if(file.size > 10 * 1024 * 1024) {
             showAlert("ARQUIVO MUITO GRANDE (MAX 10MB)");
             return;
@@ -406,28 +395,26 @@
             if (!audioCtx) initAudio();
             const raw = await file.arrayBuffer();
             const buffer = await audioCtx.decodeAudioData(raw.slice(0));
-            const name = file.name.replace(/\.[^/.]+$/, "").substring(0, 20); // Limita nome
+            const name = file.name.replace(/\.[^/.]+$/, "").substring(0, 20);
             
-            // CORREÇÃO: Salvar no banco de dados com identificador único
+            // CHAVE DA CORREÇÃO: Criar um ID único combinando PÁGINA + NÚMERO DO PAD
             const uid = `${currentPage}-${id}`;
-            sounds[id] = { buffer, name, duration: buffer.duration, raw: raw };
+            sounds[id] = { buffer, name, duration: buffer.duration };
             
             if (db) {
                 const tx = db.transaction("pads", "readwrite");
                 tx.objectStore("pads").put({ 
-                    uid: uid, 
-                    page: currentPage, 
-                    id: id, 
+                    uid: uid,           // ID único: "A-1", "B-3", etc.
+                    page: currentPage,  // Página atual
+                    id: id,             // Número do pad
                     name: name, 
                     data: raw 
                 });
+                showAlert(`PAD ${id} SALVO NO BANCO ${currentPage}`);
             }
             
             document.getElementById(`name-${id}`).innerText = name;
             document.getElementById(`rem-${id}`).innerText = formatTime(buffer.duration);
-            showAlert(`PAD ${id}: ${name}`);
-            
-            // Limpa o input para poder carregar o mesmo arquivo novamente
             e.target.value = '';
         } catch(err) {
             console.error("Erro ao carregar arquivo:", err);
@@ -451,7 +438,7 @@
     }
 
     function confirmWipe() {
-        if (confirm("LIMPAR TODA A MEMÓRIA? Esta ação não pode ser desfeita.")) {
+        if (confirm("LIMPAR TODA A MEMÓRIA? Perderá todos os áudios em todos os bancos.")) {
             stopAll();
             sounds = {};
             loops = {};
@@ -461,12 +448,9 @@
                 const store = tx.objectStore("pads");
                 store.clear(); 
                 tx.oncomplete = () => { 
-                    showAlert("MEMÓRIA RESETADA"); 
+                    showAlert("MEMÓRIA COMPLETAMENTE RESETADA"); 
                     changePage(currentPage); 
                 };
-            } else {
-                showAlert("MEMÓRIA RESETADA");
-                changePage(currentPage);
             }
         }
     }
@@ -476,7 +460,6 @@
             requestAnimationFrame(updateVU);
             return;
         }
-        
         const data = new Float32Array(analyser.frequencyBinCount);
         analyser.getFloatTimeDomainData(data);
         let sum = 0; 
@@ -490,6 +473,7 @@
         requestAnimationFrame(updateVU);
     }
 
+    // CORREÇÃO 4: Função SALVAR que funciona no GitHub Pages
     async function saveProject() {
         if (!db) {
             showAlert("BANCO DE DADOS NÃO DISPONÍVEL");
@@ -501,11 +485,15 @@
         
         request.onsuccess = (e) => {
             const allData = e.target.result;
+            if (allData.length === 0) {
+                showAlert("NENHUM ÁUDIO PARA SALVAR");
+                return;
+            }
             
-            // Processar dados para JSON
+            // Converter dados para JSON (binário para Base64)
             const processed = allData.map(item => {
-                let binary = ''; 
                 const bytes = new Uint8Array(item.data);
+                let binary = '';
                 for (let i = 0; i < bytes.byteLength; i++) {
                     binary += String.fromCharCode(bytes[i]);
                 }
@@ -513,24 +501,20 @@
                     page: item.page, 
                     id: item.id, 
                     name: item.name, 
-                    data: btoa(binary) // Converter para base64
+                    data: btoa(binary) // Converter para texto (Base64)
                 };
             });
             
-            // Criar blob com os dados
             const jsonData = JSON.stringify(processed, null, 2);
             const blob = new Blob([jsonData], { type: "application/json" });
-            
-            // CORREÇÃO: Criar link de download corretamente
             const url = URL.createObjectURL(blob);
+            
+            // CORREÇÃO CHAVE: Criar e disparar o link de download
             const a = document.createElement('a');
             a.href = url;
+            a.download = `MasterConsole_Backup_${new Date().toISOString().slice(0,10)}.json`;
             
-            // Nome do arquivo com data
-            const date = new Date().toISOString().split('T')[0];
-            a.download = `MASTER_CONSOLE_${date}.json`;
-            
-            // Adicionar ao documento, clicar e remover
+            // Adicionar à página, clicar e remover (necessário para GitHub Pages)
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -538,11 +522,11 @@
             // Liberar memória
             setTimeout(() => URL.revokeObjectURL(url), 100);
             
-            showAlert("PROJETO SALVO COM SUCESSO!");
+            showAlert(`BACKUP SALVO (${allData.length} áudio(s))`);
         };
         
         request.onerror = () => {
-            showAlert("ERRO AO SALVAR PROJETO");
+            showAlert("ERRO AO ACESSAR DADOS PARA SALVAR");
         };
     }
 
@@ -561,15 +545,11 @@
                 const data = JSON.parse(ev.target.result);
                 const tx = db.transaction("pads", "readwrite");
                 const store = tx.objectStore("pads");
+                store.clear(); // Limpar banco atual antes de restaurar
                 
-                // Limpar banco atual
-                store.clear();
-                
-                // Adicionar todos os dados do backup
                 for(let item of data) {
+                    // Converter Base64 de volta para binário
                     const bin = Uint8Array.from(atob(item.data), c => c.charCodeAt(0)).buffer;
-                    
-                    // CORREÇÃO: Usar uid consistente
                     const uid = `${item.page}-${item.id}`;
                     
                     store.put({ 
@@ -582,15 +562,14 @@
                 }
                 
                 tx.oncomplete = () => { 
-                    showAlert("PROJETO RESTAURADO COM SUCESSO!"); 
+                    showAlert("PROJETO RESTAURADO!"); 
                     changePage('A'); 
                 };
                 
-                // Limpa o input
                 e.target.value = '';
             } catch(err) {
                 console.error("Erro ao carregar projeto:", err);
-                showAlert("ERRO NO ARQUIVO DE BACKUP");
+                showAlert("ARQUIVO DE BACKUP INVÁLIDO");
             }
         };
         reader.readAsText(file);
@@ -616,12 +595,11 @@
         if(masterGain) masterGain.gain.value = parseFloat(e.target.value);
     };
     
-    // Inicialização automática
+    // Inicialização
     setTimeout(() => {
-        if (!audioCtx) {
-            initAudio();
-        }
-    }, 1000);
+        if (!audioCtx) initAudio();
+    }, 500);
 </script>
 </body>
 </html>
+
