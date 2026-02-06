@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Master Console</title>
+<title>Master Console - Helton Alves</title>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Rajdhani:wght@600;700&display=swap');
 
 :root{
-    --bg:#050505;--card:#111;--pad:#1a1a1a;
-    --primary:#00e5ff;--accent:#00ff88;--danger:#ff4d4d;
-    --text:#f0f0f0;--dim:#888;
+--bg:#050505;--card:#111;--pad-bg:#1a1a1a;
+--primary:#00e5ff;--accent:#00ff88;--danger:#ff4d4d;
+--text:#f0f0f0;--dim:#999;
 }
 
 body.pg-A{--primary:#00e5ff}
@@ -19,322 +19,251 @@ body.pg-B{--primary:#ffcc00}
 body.pg-C{--primary:#d600ff}
 
 body{
-    margin:0;
-    font-family:'Inter',sans-serif;
-    background:var(--bg);
-    color:var(--text);
-    display:flex;
-    justify-content:center;
-    height:100vh;
+font-family:'Inter',sans-serif;
+background:var(--bg);color:var(--text);
+display:flex;justify-content:center;align-items:center;
+height:100vh;margin:0;overflow:hidden;
 }
 
 .container{
-    width:96vw;max-width:1350px;
-    background:var(--card);
-    margin:20px;
-    padding:14px 25px;
-    border-radius:14px;
-    border:1px solid #333;
-    display:flex;
-    flex-direction:column;
-    gap:10px;
+zoom:1.25;
+background:var(--card);
+padding:12px 25px;border-radius:12px;
+width:96vw;max-width:1350px;
+border:1px solid #333;
+box-shadow:0 0 60px #000;
+display:flex;flex-direction:column;gap:8px;
+}
+
+.header-main{
+display:flex;justify-content:space-between;align-items:center;
+border-bottom:1px solid #222;padding-bottom:8px;
 }
 
 .brand{
-    font-family:'Rajdhani';
-    font-size:1.6rem;
-    font-weight:700;
+font-family:'Rajdhani',sans-serif;
+font-size:1.7rem;font-weight:700;
+letter-spacing:2px;text-transform:uppercase;
 }
 .brand span{color:var(--primary)}
 
-.top{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
+.icon-actions{display:flex;gap:12px}
+.action-wrapper{display:flex;flex-direction:column;align-items:center;gap:3px;width:55px}
+.icon-btn{
+width:40px;height:40px;
+display:flex;align-items:center;justify-content:center;
+background:#222;border:2px solid #444;border-radius:8px;
+cursor:pointer;color:#fff;transition:.2s
 }
+.icon-btn:hover{border-color:var(--primary);transform:scale(1.05)}
+.icon-btn.danger:hover{border-color:var(--danger);color:var(--danger)}
+.icon-btn svg{width:20px;height:20px;fill:currentColor}
+.tooltip-text{font-size:.6rem;font-weight:800;color:var(--dim)}
 
-.tabs{display:flex;gap:8px}
+.top-row{display:flex;justify-content:space-between;align-items:center}
+.page-tabs{display:flex;gap:8px}
 .tab{
-    padding:6px 22px;
-    border:2px solid #333;
-    border-radius:6px;
-    background:#1a1a1a;
-    font-weight:800;
-    cursor:pointer;
-    color:var(--dim);
+background:#1a1a1a;border:2px solid #333;color:var(--dim);
+padding:6px 25px;border-radius:6px;
+cursor:pointer;font-weight:800;font-size:.85rem
 }
-.tab.active{
-    background:var(--primary);
-    color:#000;
-    border-color:var(--primary);
+.tab.active{background:var(--primary);color:#000;border-color:var(--primary)}
+
+.master-strip{
+display:grid;grid-template-columns:1fr 220px;
+gap:20px;background:#000;
+padding:10px 18px;border-radius:8px;border:1px solid #222;
+align-items:center
 }
 
-.master{
-    display:grid;
-    grid-template-columns:1fr 220px;
-    gap:18px;
-    padding:10px 16px;
-    background:#000;
-    border-radius:8px;
-    border:1px solid #222;
-    align-items:center;
+.vu-container{
+height:10px;background:#111;border-radius:5px;
+overflow:hidden;border:1px solid #333
+}
+#vu-fill{
+height:100%;width:0%;
+background:linear-gradient(90deg,#00ff88 70%,#ffcc00 85%,#ff3b3b 100%);
+transition:width .07s
 }
 
-.vu{
-    height:10px;
-    background:#111;
-    border-radius:5px;
-    overflow:hidden;
-}
-#vuFill{
-    height:100%;
-    width:0%;
-    background:linear-gradient(90deg,#00ff88 70%,#ffcc00 85%,#ff3b3b);
-}
-
-.grid{
-    display:grid;
-    grid-template-columns:repeat(3,1fr);
-    gap:12px;
-}
+.grid-pads{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 
 .pad{
-    background:var(--pad);
-    border:2px solid #333;
-    border-radius:12px;
-    height:135px;
-    padding:10px 14px;
-    position:relative;
-    cursor:pointer;
-    display:flex;
-    flex-direction:column;
-    transition:.15s;
+background:var(--pad-bg);height:120px;
+border-radius:10px;border:2px solid #333;
+position:relative;cursor:pointer;
+display:flex;flex-direction:column;
+padding:10px 15px;box-sizing:border-box
+}
+.pad.active{border-color:var(--accent);background:#080808}
+
+.prog-bar{
+position:absolute;top:0;left:0;height:100%;width:0%;
+background:rgba(0,255,136,.1);
+border-right:3px solid var(--accent);
+pointer-events:none;border-radius:8px 0 0 8px
 }
 
-.pad.active{
-    border-color:var(--accent);
-    background:#080808;
-    transform:translateY(-1px);
-    box-shadow:0 0 20px rgba(0,255,136,.35);
+.p-idx{position:absolute;top:8px;left:12px;font-weight:800;color:#444}
+.pad-controls{position:absolute;top:6px;right:10px;display:flex;gap:8px;z-index:10}
+
+.btn-loop{background:none;border:none;color:#555;cursor:pointer}
+.btn-loop.active{color:var(--primary)}
+.btn-loop svg{width:18px;height:18px}
+
+.p-menu-trigger{color:var(--dim);font-size:1.6rem;font-weight:bold;cursor:pointer}
+
+.ctx-menu{
+position:absolute;top:25px;right:0;
+background:#252525;border:1px solid #555;
+border-radius:6px;display:none;flex-direction:column;
+z-index:1000;box-shadow:0 10px 30px #000
+}
+.ctx-menu.show{display:flex}
+.ctx-opt{padding:10px 18px;font-size:.8rem;font-weight:700;cursor:pointer}
+.ctx-opt:hover{background:var(--primary);color:#000}
+
+.p-title{
+font-size:1.2rem;font-weight:800;color:var(--primary);
+text-align:center;margin-top:18px;
+white-space:nowrap;overflow:hidden;text-overflow:ellipsis
 }
 
-.pad.active::after{
-    content:'';
-    position:absolute;
-    inset:0;
-    box-shadow:0 0 30px rgba(0,255,136,.2);
-    animation:pulse 1.6s infinite;
+.p-footer{
+margin-top:auto;display:flex;justify-content:space-between;
+font-size:.85rem;font-weight:600
 }
 
-@keyframes pulse{
-    0%{opacity:.3}
-    50%{opacity:.7}
-    100%{opacity:.3}
+.pad-volume{
+margin-top:4px;
+}
+.pad-volume input{
+width:100%;
+accent-color:var(--primary)
 }
 
-.prog{
-    position:absolute;
-    inset:0;
-    width:0%;
-    background:rgba(0,255,136,.12);
-    border-right:3px solid var(--accent);
-    pointer-events:none;
-    border-radius:10px 0 0 10px;
-    transition:width .04s linear;
+.console-footer{
+margin-top:5px;text-align:center;font-size:.7rem;color:#555;font-weight:600
 }
 
-.idx{
-    position:absolute;
-    top:8px;left:12px;
-    font-weight:800;
-    color:#444;
-}
+.dev-link{color:var(--primary);font-weight:800;text-decoration:none}
 
-.controls{
-    position:absolute;
-    top:6px;right:10px;
-    display:flex;
-    gap:8px;
-}
-
-.loop{
-    background:none;
-    border:none;
-    cursor:pointer;
-    color:#555;
-}
-.loop.active{color:var(--primary)}
-
-.title{
-    margin-top:18px;
-    text-align:center;
-    font-weight:800;
-    color:var(--primary);
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-}
-
-.footer{
-    margin-top:auto;
-    display:flex;
-    flex-direction:column;
-    gap:4px;
-}
-
-.times{
-    display:flex;
-    justify-content:space-between;
-    font-family:'Rajdhani';
-    font-size:.85rem;
-}
-
-.vol{
-    width:100%;
-    accent-color:var(--primary);
+#alert{
+position:fixed;top:15px;left:50%;transform:translateX(-50%);
+background:var(--primary);color:#000;
+padding:10px 30px;border-radius:8px;font-weight:800;
+display:none;z-index:9999
 }
 </style>
 </head>
 
 <body class="pg-A">
+<div id="alert"></div>
 
 <div class="container">
+<!-- HEADER -->
+<div class="header-main">
+<div class="brand">MASTER<span>CONSOLE</span></div>
 
-<div class="top">
-    <div class="brand">MASTER<span>CONSOLE</span></div>
-    <div class="tabs">
-        <div class="tab active" onclick="page('A')">A</div>
-        <div class="tab" onclick="page('B')">B</div>
-        <div class="tab" onclick="page('C')">C</div>
-    </div>
+<div class="icon-actions">
+<div class="action-wrapper">
+<div class="icon-btn" onclick="stopAll()">■</div>
+<div class="tooltip-text">STOP [0]</div>
 </div>
 
-<div class="master">
-    <div class="vu"><div id="vuFill"></div></div>
-    <input type="range" min="0" max="1.5" step=".01" value="1"
-           oninput="masterGain.gain.value=this.value">
+<div class="action-wrapper">
+<div class="icon-btn" onclick="saveProject()">💾</div>
+<div class="tooltip-text">SALVAR</div>
 </div>
 
-<div class="grid" id="grid"></div>
+<div class="action-wrapper">
+<div class="icon-btn" onclick="fileIn.click()">📂</div>
+<div class="tooltip-text">ABRIR</div>
+</div>
 
+<div class="action-wrapper">
+<div class="icon-btn danger" onclick="confirmWipe()">🗑️</div>
+<div class="tooltip-text">LIMPAR</div>
+</div>
+
+<input type="file" id="fileIn" accept=".json" hidden onchange="loadProject(event)">
+</div>
+</div>
+
+<!-- TOP -->
+<div class="top-row">
+<div class="page-tabs">
+<div class="tab active" onclick="changePage('A')" data-pg="A">BANCO A</div>
+<div class="tab" onclick="changePage('B')" data-pg="B">BANCO B</div>
+<div class="tab" onclick="changePage('C')" data-pg="C">BANCO C</div>
+</div>
+<div id="pg-status">MODO: BANCO A</div>
+</div>
+
+<!-- MASTER -->
+<div class="master-strip">
+<div class="vu-container"><div id="vu-fill"></div></div>
+<input type="range" id="gainSlider" min="0" max="1.5" step="0.01" value="1">
+</div>
+
+<div class="grid-pads" id="padGrid"></div>
+
+<div class="console-footer">
+NUMPAD [1-9]: PLAY | [0]: STOP ALL<br>
+Desenvolvido por <a class="dev-link" target="_blank"
+href="https://wa.me/5514991540084">Helton Alves | Locutor Publicitário</a>
+</div>
 </div>
 
 <script>
-const ctx=new AudioContext();
-const masterGain=ctx.createGain();
-const analyser=ctx.createAnalyser();
-masterGain.connect(analyser);
-analyser.connect(ctx.destination);
+const audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+const masterGain=audioCtx.createGain();
+const analyser=audioCtx.createAnalyser();
+masterGain.connect(analyser);analyser.connect(audioCtx.destination);
 
-let pageNow='A';
-let pads={},sources={};
+let sounds={},sources={},gains={},loops={},currentPage='A',db;
 
-const grid=document.getElementById('grid');
+const grid=document.getElementById('padGrid');
 
 for(let i=1;i<=9;i++){
-    grid.innerHTML+=`
-    <div class="pad" id="pad${i}">
-        <div class="prog" id="prog${i}"></div>
-        <div class="idx">${i}</div>
-        <div class="controls">
-            <button class="loop" id="loop${i}">⟳</button>
-        </div>
-        <div class="title" id="name${i}">---</div>
-        <div class="footer">
-            <div class="times">
-                <span id="cur${i}">00:00</span>
-                <span id="rem${i}">00:00</span>
-            </div>
-            <input class="vol" type="range" min="0" max="1" step=".01" value="1">
-        </div>
-        <input type="file" hidden id="file${i}" accept="audio/*">
-    </div>`;
+const p=document.createElement('div');
+p.className='pad';p.id=`pad-${i}`;
+p.innerHTML=`
+<div class="p-idx">${i}</div>
+<div class="pad-controls">
+<button class="btn-loop" onclick="toggleLoop(event,${i})">🔁</button>
+<div class="p-menu-trigger" onclick="toggleCtx(event,${i})">⋮</div>
+<div class="ctx-menu" id="menu-${i}">
+<div class="ctx-opt" onclick="clickInput(${i})">📁 CARREGAR</div>
+<div class="ctx-opt" style="color:#ff4d4d" onclick="clearSlot(${i})">🗑️ LIMPAR</div>
+</div>
+</div>
+<div class="prog-bar" id="prog-${i}"></div>
+<div class="p-title" id="name-${i}">---</div>
+<div class="p-footer">
+<span id="cur-${i}">00:00</span>
+<span id="rem-${i}">00:00</span>
+</div>
+<div class="pad-volume">
+<input type="range" min="0" max="1" step="0.01" value="1"
+oninput="setPadVolume(${i},this.value)">
+</div>
+<input type="file" id="in-${i}" accept="audio/*" hidden onchange="handleFile(event,${i})">
+`;
+p.onclick=e=>{
+if(!e.target.closest('.pad-controls')) playSound(i);
+};
+grid.appendChild(p);
 }
 
-document.querySelectorAll('.pad').forEach((p,i)=>{
-    const id=i+1;
-    pads[id]={loop:false,vol:1};
-    p.onclick=()=>play(id);
-    p.ondblclick=()=>document.getElementById('file'+id).click();
-    document.getElementById('loop'+id).onclick=e=>{
-        e.stopPropagation();
-        pads[id].loop=!pads[id].loop;
-        e.target.classList.toggle('active',pads[id].loop);
-    }
-    p.querySelector('.vol').oninput=e=>pads[id].vol=e.target.value;
-    document.getElementById('file'+id).onchange=async e=>{
-        const f=e.target.files[0];
-        const buf=await ctx.decodeAudioData(await f.arrayBuffer());
-        pads[id].buf=buf;
-        document.getElementById('name'+id).innerText=f.name.replace(/\..*/,'');
-        document.getElementById('rem'+id).innerText=time(buf.duration);
-    }
-});
-
-function play(id){
-    if(!pads[id].buf)return;
-    if(ctx.state==='suspended')ctx.resume();
-    if(sources[id])return stop(id);
-
-    const src=ctx.createBufferSource();
-    const g=ctx.createGain();
-    src.buffer=pads[id].buf;
-    src.loop=pads[id].loop;
-    g.gain.setValueAtTime(0,ctx.currentTime);
-    g.gain.linearRampToValueAtTime(pads[id].vol,ctx.currentTime+.015);
-    src.connect(g).connect(masterGain);
-    src.start();
-    sources[id]={src,g,start:ctx.currentTime};
-    document.getElementById('pad'+id).classList.add('active');
-
-    function anim(){
-        if(!sources[id])return;
-        let t=(ctx.currentTime-sources[id].start)%src.buffer.duration;
-        document.getElementById('prog'+id).style.width=(t/src.buffer.duration*100)+'%';
-        document.getElementById('cur'+id).innerText=time(t);
-        document.getElementById('rem'+id).innerText='-'+time(src.buffer.duration-t);
-        requestAnimationFrame(anim);
-    }
-    anim();
-
-    src.onended=()=>!pads[id].loop&&stop(id);
+function setPadVolume(id,v){
+if(gains[id]) gains[id].gain.value=v;
+if(sounds[id]) sounds[id].vol=v;
 }
 
-function stop(id){
-    const o=sources[id];
-    if(!o)return;
-    o.g.gain.linearRampToValueAtTime(0,ctx.currentTime+.02);
-    setTimeout(()=>o.src.stop(),25);
-    sources[id]=null;
-    document.getElementById('pad'+id).classList.remove('active');
-    document.getElementById('prog'+id).style.width='0%';
-}
-
-function page(p){
-    pageNow=p;
-    document.body.className='pg-'+p;
-    document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.innerText===p));
-}
-
-function time(s){
-    const m=Math.floor(s/60),sc=Math.floor(s%60);
-    return m.toString().padStart(2,'0')+':'+sc.toString().padStart(2,'0');
-}
-
-function vu(){
-    const d=new Float32Array(analyser.fftSize);
-    analyser.getFloatTimeDomainData(d);
-    let sum=0;d.forEach(v=>sum+=v*v);
-    const rms=Math.sqrt(sum/d.length);
-    vuFill.style.width=Math.min(100,Math.max(0,(20*Math.log10(rms)+50)*2))+'%';
-    requestAnimationFrame(vu);
-}
-vu();
-
-window.onkeydown=e=>{
-    if(e.key>=1&&e.key<=9)play(+e.key);
-    if(e.key==='0')Object.keys(sources).forEach(stop);
-}
+document.getElementById('gainSlider').oninput=e=>{
+masterGain.gain.value=e.target.value;
+};
 </script>
 </body>
 </html>
