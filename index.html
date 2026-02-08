@@ -97,6 +97,34 @@
         .ctx-opt { padding: 10px 18px; font-size: 0.8rem; cursor: pointer; border-bottom: 1px solid #333; font-weight: 700; color: #fff; white-space: nowrap; }
         .ctx-opt:hover { background: var(--primary); color: #000; }
 
+        /* ETAPA 1: Controles de volume e fade nos pads */
+        .pad-volume-controls {
+            position: absolute; bottom: 8px; left: 10px; right: 10px;
+            display: flex; align-items: center; gap: 8px; opacity: 0;
+            transition: opacity 0.3s; z-index: 3;
+        }
+        .pad:hover .pad-volume-controls { opacity: 1; }
+
+        .vol-slider { 
+            flex-grow: 1; height: 4px; -webkit-appearance: none;
+            background: #333; border-radius: 2px; outline: none;
+        }
+        .vol-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 12px; height: 12px;
+            background: var(--primary); border-radius: 50%; cursor: pointer;
+        }
+        .vol-slider::-moz-range-thumb {
+            width: 12px; height: 12px; background: var(--primary);
+            border-radius: 50%; cursor: pointer; border: none;
+        }
+
+        .fade-control { 
+            font-size: 0.65rem; color: var(--dim); font-weight: 600;
+            white-space: nowrap; min-width: 40px; text-align: right;
+            cursor: pointer; padding: 2px 4px; border-radius: 3px;
+        }
+        .fade-control:hover { background: rgba(255,255,255,0.1); }
+
         @media (max-width: 768px) {
             .container { padding: 10px; zoom: 0.95; }
             .grid-pads { grid-template-columns: repeat(2, 1fr); }
@@ -161,6 +189,7 @@
     // Sistema de Áudio
     let audioCtx, masterGain, analyser;
     let sounds = {}; let activeSources = {}; let currentPage = 'A'; let db; let loops = {};
+    let padVolumes = {}; let padFades = {}; let padGainNodes = {}; // ETAPA 1: Novas variáveis
     
     function initAudio() {
         if (!audioCtx) {
@@ -185,7 +214,7 @@
         document.body.removeEventListener('click', initOnClick);
     });
 
-    // Criar os 9 pads
+    // Criar os 9 pads com controles de volume
     const grid = document.getElementById('padGrid');
     for (let i = 1; i <= 9; i++) {
         const div = document.createElement('div');
@@ -199,16 +228,28 @@
                 <div class="p-menu-trigger" onclick="toggleCtx(event, ${i})">⋮</div>
                 <div class="ctx-menu" id="menu-${i}">
                     <div class="ctx-opt" onclick="clickInput(${i})">📁 CARREGAR ÁUDIO</div>
+                    <div class="ctx-opt" onclick="toggleStopGroup(${i})" id="stopgroup-${i}">⏹️ GRUPO: OFF</div>
                     <div class="ctx-opt" style="color:#ff4d4d" onclick="clearSlot(${i})">🗑️ LIMPAR PAD</div>
                 </div>
             </div>
             <div class="prog-bar" id="prog-${i}"></div>
             <div class="p-title" id="name-${i}">---</div>
-            <div class="p-footer"><span id="cur-${i}">00:00</span><span id="rem-${i}" style="color:#ff4d4d">00:00</span></div>
+            
+            <!-- ETAPA 1: Controles de Volume e Fade -->
+            <div class="pad-volume-controls">
+                <input type="range" class="vol-slider" id="vol-${i}" min="0" max="1" step="0.01" value="1.0" 
+                       oninput="updatePadVolume(${i}, this.value)">
+                <div class="fade-control" id="fade-${i}" onclick="cycleFadeSetting(${i})">FADE: OFF</div>
+            </div>
+            
+            <div class="p-footer">
+                <span id="cur-${i}">00:00</span>
+                <span id="rem-${i}" style="color:#ff4d4d">00:00</span>
+            </div>
             <input type="file" id="in-${i}" style="display:none" accept="audio/*" onchange="handleFile(event, ${i})">
         `;
         div.onclick = (e) => { 
-            if(!e.target.closest('.pad-controls') && !e.target.closest('.ctx-menu')) {
+            if(!e.target.closest('.pad-controls') && !e.target.closest('.ctx-menu') && !e.target.closest('.pad-volume-controls')) {
                 initAudio();
                 playSound(i); 
             }
@@ -216,19 +257,20 @@
         grid.appendChild(div);
     }
 
-    // CORREÇÃO 1: Configurar o banco de dados com índice por página
-    const dbReq = indexedDB.open("MasterConsoleDB_v2", 1); // Versão nova para atualizar esquema
+    // Configurar banco de dados
+    const dbReq = indexedDB.open("MasterConsoleDB_v3", 2); // Nova versão para suportar settings
     dbReq.onupgradeneeded = function(e) {
-        console.log("Criando/atualizando banco de dados...");
+        console.log("Criando/atualizando banco de dados v3...");
         db = e.target.result;
         if (!db.objectStoreNames.contains('pads')) {
             const store = db.createObjectStore('pads', { keyPath: 'uid' });
-            store.createIndex('page_idx', 'page', { unique: false }); // Índice para buscar por página
+            store.createIndex('page_idx', 'page', { unique: false });
+            store.createIndex('type_idx', 'type', { unique: false });
         }
     };
     dbReq.onsuccess = (e) => { 
         db = e.target.result; 
-        console.log("Banco de dados pronto.");
+        console.log("Banco de dados v3 pronto.");
         changePage('A'); 
     };
     dbReq.onerror = (e) => { 
@@ -251,9 +293,9 @@
         showAlert(`PAD ${id}: LOOP ${loops[key] ? 'ON' : 'OFF'}`);
     }
 
-    // CORREÇÃO 2: Buscar dados APENAS da página atual
+    // Buscar dados APENAS da página atual
     async function changePage(p) {
-        stopAll();
+        // NÃO paramos os sons ao mudar de página (será corrigido na ETAPA 2)
         currentPage = p;
         document.body.className = `pg-${p}`;
         document.getElementById('pg-status').innerText = `MODO: BANCO ${p}`;
@@ -261,25 +303,28 @@
         
         // Resetar visualização
         for(let i = 1; i <= 9; i++) {
-            document.getElementById(`name-${i}`).innerText = "---";
-            document.getElementById(`rem-${i}`).innerText = "00:00";
-            document.getElementById(`prog-${i}`).style.width = "0%";
-            document.getElementById(`cur-${i}`).innerText = "00:00";
+            // Só reseta se não estiver tocando
+            if (!activeSources[i] || activeSources[i].page !== currentPage) {
+                document.getElementById(`name-${i}`).innerText = "---";
+                document.getElementById(`rem-${i}`).innerText = "00:00";
+                document.getElementById(`prog-${i}`).style.width = "0%";
+                document.getElementById(`cur-${i}`).innerText = "00:00";
+            }
             document.getElementById(`loop-${i}`).classList.toggle('active', !!loops[currentPage + i]);
         }
 
-        sounds = {}; // Limpar cache de sons
+        sounds = {}; // Limpar cache de sons da página atual
         
         if (db) {
             const tx = db.transaction("pads", "readonly");
             const store = tx.objectStore("pads");
-            const index = store.index("page_idx"); // Usar o índice por página
+            const index = store.index("page_idx");
             
-            // CORREÇÃO CHAVE: Buscar SOMENTE os registros onde 'page' = página atual
+            // Buscar SOMENTE os registros onde 'page' = página atual
             const request = index.getAll(currentPage);
             
             request.onsuccess = async (e) => {
-                const pageData = e.target.result;
+                const pageData = e.target.result.filter(item => item.type !== 'settings');
                 console.log(`Carregando Banco ${p}:`, pageData.length, "áudio(s)");
                 
                 for(let item of pageData) {
@@ -298,6 +343,9 @@
                     }
                 }
                 showAlert(`BANCO ${p} PRONTO`);
+                
+                // Carregar configurações dos pads
+                loadPadSettings();
             };
             
             request.onerror = (e) => {
@@ -306,7 +354,138 @@
         }
     }
 
+    // ETAPA 1: Volume individual e fade por pad
+    function updatePadVolume(padId, volume) {
+        const key = `${currentPage}-${padId}`;
+        padVolumes[key] = parseFloat(volume);
+        
+        // Atualizar volume se estiver tocando
+        if (padGainNodes[key] && padGainNodes[key].gain) {
+            padGainNodes[key].gain.value = volume;
+        }
+        
+        // Salvar no IndexedDB
+        savePadSettings(padId);
+    }
+
+    function cycleFadeSetting(padId) {
+        const key = `${currentPage}-${padId}`;
+        const fadeOpts = [
+            { name: "OFF", in: 0, out: 0 },
+            { name: "IN 1s", in: 1, out: 0 },
+            { name: "OUT 1s", in: 0, out: 1 },
+            { name: "IN/OUT", in: 0.5, out: 0.5 },
+            { name: "IN 2s", in: 2, out: 0 },
+            { name: "LONG", in: 1, out: 3 }
+        ];
+        
+        if (!padFades[key]) padFades[key] = { index: 0 };
+        padFades[key].index = (padFades[key].index + 1) % fadeOpts.length;
+        
+        const opt = fadeOpts[padFades[key].index];
+        padFades[key].in = opt.in;
+        padFades[key].out = opt.out;
+        
+        document.getElementById(`fade-${padId}`).textContent = `FADE: ${opt.name}`;
+        savePadSettings(padId);
+    }
+
+    function applyFade(padId, sourceNode, duration) {
+        const key = `${currentPage}-${padId}`;
+        const volume = padVolumes[key] || 1;
+        
+        if (!padFades[key]) {
+            // Sem fade, apenas volume
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = volume;
+            padGainNodes[key] = gainNode;
+            sourceNode.connect(gainNode);
+            return gainNode;
+        }
+        
+        const now = audioCtx.currentTime;
+        const gainNode = audioCtx.createGain();
+        
+        // Fade in
+        if (padFades[key].in > 0) {
+            gainNode.gain.setValueAtTime(0.001, now);
+            gainNode.gain.exponentialRampToValueAtTime(
+                volume, 
+                now + Math.min(padFades[key].in, duration * 0.9)
+            );
+        } else {
+            gainNode.gain.value = volume;
+        }
+        
+        // Fade out (se aplicável e se não for loop)
+        const loopKey = currentPage + padId;
+        if (padFades[key].out > 0 && !loops[loopKey]) {
+            const fadeOutStart = now + duration - Math.min(padFades[key].out, duration * 0.9);
+            gainNode.gain.setValueAtTime(volume, fadeOutStart);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        }
+        
+        padGainNodes[key] = gainNode;
+        sourceNode.connect(gainNode);
+        return gainNode;
+    }
+
+    async function savePadSettings(padId) {
+        if (!db) return;
+        
+        const key = `${currentPage}-${padId}`;
+        const settings = {
+            uid: `settings-${key}`,
+            type: 'settings',
+            page: currentPage,
+            pad: padId,
+            volume: padVolumes[key] || 1,
+            fadeIn: padFades[key]?.in || 0,
+            fadeOut: padFades[key]?.out || 0,
+            fadeIndex: padFades[key]?.index || 0
+        };
+        
+        const tx = db.transaction("pads", "readwrite");
+        tx.objectStore("pads").put(settings);
+    }
+
+    async function loadPadSettings() {
+        if (!db) return;
+        
+        const tx = db.transaction("pads", "readonly");
+        const request = tx.objectStore("pads").getAll();
+        
+        request.onsuccess = (e) => {
+            const allData = e.target.result;
+            allData.filter(item => item.type === 'settings').forEach(item => {
+                const key = `${item.page}-${item.pad}`;
+                padVolumes[key] = item.volume || 1;
+                
+                if (item.fadeIn > 0 || item.fadeOut > 0 || item.fadeIndex > 0) {
+                    padFades[key] = {
+                        in: item.fadeIn,
+                        out: item.fadeOut,
+                        index: item.fadeIndex || 0
+                    };
+                }
+                
+                // Atualizar controles visuais se estiver na página atual
+                if (currentPage === item.page) {
+                    const volSlider = document.getElementById(`vol-${item.pad}`);
+                    if (volSlider) volSlider.value = item.volume || 1;
+                    
+                    const fadeEl = document.getElementById(`fade-${item.pad}`);
+                    if (fadeEl) {
+                        const opts = ["OFF", "IN 1s", "OUT 1s", "IN/OUT", "IN 2s", "LONG"];
+                        fadeEl.textContent = `FADE: ${opts[item.fadeIndex] || "OFF"}`;
+                    }
+                }
+            });
+        };
+    }
+
     function playSound(id) {
+        const key = currentPage + id;
         if(!sounds[id]) {
             showAlert(`PAD ${id} VAZIO`);
             return;
@@ -326,11 +505,15 @@
         try {
             const src = audioCtx.createBufferSource();
             src.buffer = sounds[id].buffer;
-            src.loop = !!loops[currentPage + id];
-            src.connect(masterGain);
+            src.loop = !!loops[key];
+            
+            // Aplicar volume e fade
+            const gainNode = applyFade(id, src, sounds[id].duration);
+            gainNode.connect(masterGain);
+            
             const start = audioCtx.currentTime;
-            src.start(0); 
-            activeSources[id] = src;
+            src.start(0);
+            activeSources[id] = { source: src, gain: gainNode, page: currentPage };
             document.getElementById(`pad-${id}`).classList.add('active');
             
             const animate = () => {
@@ -344,7 +527,12 @@
             animate();
             
             src.onended = () => { 
-                if(!loops[currentPage + id]) stopSound(id); 
+                if(!loops[key]) {
+                    stopSound(id);
+                } else {
+                    // Se for loop, não para automaticamente
+                    // O loop será controlado pelo toggleLoop
+                }
             };
         } catch(err) {
             console.error("Erro ao tocar:", err);
@@ -352,15 +540,40 @@
         }
     }
 
-    function stopSound(id) {
+    function stopSound(id, immediate = false) {
         if(activeSources[id]) { 
-            try{ activeSources[id].stop(); } catch(e){} 
-            activeSources[id] = null; 
+            try { 
+                const key = `${activeSources[id].page}-${id}`;
+                if (!immediate && padFades[key]?.out > 0) {
+                    // Fade out suave
+                    const now = audioCtx.currentTime;
+                    activeSources[id].gain.gain.cancelScheduledValues(now);
+                    activeSources[id].gain.gain.setValueAtTime(
+                        activeSources[id].gain.gain.value, 
+                        now
+                    );
+                    activeSources[id].gain.gain.exponentialRampToValueAtTime(
+                        0.001, 
+                        now + padFades[key].out
+                    );
+                    setTimeout(() => {
+                        if (activeSources[id]?.source) {
+                            try { activeSources[id].source.stop(); } catch(e) {}
+                        }
+                    }, padFades[key].out * 1000);
+                } else {
+                    // Parada imediata
+                    activeSources[id].source.stop();
+                }
+            } catch(e) {} 
+            activeSources[id] = null;
         }
         document.getElementById(`pad-${id}`).classList.remove('active');
         document.getElementById(`prog-${id}`).style.width = "0%";
         document.getElementById(`cur-${id}`).innerText = "00:00";
-        document.getElementById(`rem-${id}`).innerText = sounds[id] ? formatTime(sounds[id].duration) : "00:00";
+        if (sounds[id]) {
+            document.getElementById(`rem-${id}`).innerText = formatTime(sounds[id].duration);
+        }
     }
 
     function stopAll() { 
@@ -381,7 +594,7 @@
         if(e.key === '0' || e.key === 'Escape') stopAll();
     });
 
-    // CORREÇÃO 3: Salvar com UID único que inclui a página
+    // Salvar com UID único que inclui a página
     async function handleFile(e, id) {
         const file = e.target.files[0]; 
         if(!file) return;
@@ -397,18 +610,18 @@
             const buffer = await audioCtx.decodeAudioData(raw.slice(0));
             const name = file.name.replace(/\.[^/.]+$/, "").substring(0, 20);
             
-            // CHAVE DA CORREÇÃO: Criar um ID único combinando PÁGINA + NÚMERO DO PAD
+            // Criar um ID único combinando PÁGINA + NÚMERO DO PAD
             const uid = `${currentPage}-${id}`;
             sounds[id] = { buffer, name, duration: buffer.duration };
             
             if (db) {
                 const tx = db.transaction("pads", "readwrite");
                 tx.objectStore("pads").put({ 
-                    uid: uid,           // ID único: "A-1", "B-3", etc.
-                    page: currentPage,  // Página atual
-                    id: id,             // Número do pad
+                    uid: uid,
+                    page: currentPage,
+                    id: id,
                     name: name, 
-                    data: raw 
+                    data: raw
                 });
                 showAlert(`PAD ${id} SALVO NO BANCO ${currentPage}`);
             }
@@ -430,10 +643,21 @@
             const uid = `${currentPage}-${id}`;
             const tx = db.transaction("pads", "readwrite");
             tx.objectStore("pads").delete(uid);
+            
+            // Também limpar configurações
+            const settingsUid = `settings-${uid}`;
+            tx.objectStore("pads").delete(settingsUid);
         }
         
         document.getElementById(`name-${id}`).innerText = "---";
         document.getElementById(`rem-${id}`).innerText = "00:00";
+        document.getElementById(`vol-${id}`).value = 1.0;
+        document.getElementById(`fade-${id}`).textContent = "FADE: OFF";
+        
+        const key = `${currentPage}-${id}`;
+        delete padVolumes[key];
+        delete padFades[key];
+        
         showAlert(`PAD ${id} LIMPO`);
     }
 
@@ -442,6 +666,8 @@
             stopAll();
             sounds = {};
             loops = {};
+            padVolumes = {};
+            padFades = {};
             
             if (db) {
                 const tx = db.transaction("pads", "readwrite");
@@ -473,7 +699,7 @@
         requestAnimationFrame(updateVU);
     }
 
-    // CORREÇÃO 4: Função SALVAR que funciona no GitHub Pages
+    // Função SALVAR que funciona no GitHub Pages
     async function saveProject() {
         if (!db) {
             showAlert("BANCO DE DADOS NÃO DISPONÍVEL");
@@ -492,29 +718,43 @@
             
             // Converter dados para JSON (binário para Base64)
             const processed = allData.map(item => {
-                const bytes = new Uint8Array(item.data);
-                let binary = '';
-                for (let i = 0; i < bytes.byteLength; i++) {
-                    binary += String.fromCharCode(bytes[i]);
+                if (item.type === 'settings') {
+                    // Settings não precisam de data binária
+                    return { 
+                        type: 'settings',
+                        page: item.page, 
+                        pad: item.pad, 
+                        volume: item.volume,
+                        fadeIn: item.fadeIn,
+                        fadeOut: item.fadeOut,
+                        fadeIndex: item.fadeIndex
+                    };
+                } else {
+                    const bytes = new Uint8Array(item.data);
+                    let binary = '';
+                    for (let i = 0; i < bytes.byteLength; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                    }
+                    return { 
+                        uid: item.uid,
+                        page: item.page, 
+                        id: item.id, 
+                        name: item.name, 
+                        data: btoa(binary)
+                    };
                 }
-                return { 
-                    page: item.page, 
-                    id: item.id, 
-                    name: item.name, 
-                    data: btoa(binary) // Converter para texto (Base64)
-                };
             });
             
             const jsonData = JSON.stringify(processed, null, 2);
             const blob = new Blob([jsonData], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             
-            // CORREÇÃO CHAVE: Criar e disparar o link de download
+            // Criar e disparar o link de download
             const a = document.createElement('a');
             a.href = url;
             a.download = `MasterConsole_Backup_${new Date().toISOString().slice(0,10)}.json`;
             
-            // Adicionar à página, clicar e remover (necessário para GitHub Pages)
+            // Adicionar à página, clicar e remover
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -522,7 +762,7 @@
             // Liberar memória
             setTimeout(() => URL.revokeObjectURL(url), 100);
             
-            showAlert(`BACKUP SALVO (${allData.length} áudio(s))`);
+            showAlert(`BACKUP SALVO (${allData.filter(d => d.type !== 'settings').length} áudio(s))`);
         };
         
         request.onerror = () => {
@@ -548,17 +788,29 @@
                 store.clear(); // Limpar banco atual antes de restaurar
                 
                 for(let item of data) {
-                    // Converter Base64 de volta para binário
-                    const bin = Uint8Array.from(atob(item.data), c => c.charCodeAt(0)).buffer;
-                    const uid = `${item.page}-${item.id}`;
-                    
-                    store.put({ 
-                        uid: uid,
-                        page: item.page, 
-                        id: item.id, 
-                        name: item.name, 
-                        data: bin 
-                    });
+                    if (item.type === 'settings') {
+                        // Restaurar settings
+                        store.put({ 
+                            uid: `settings-${item.page}-${item.pad}`,
+                            type: 'settings',
+                            page: item.page, 
+                            pad: item.pad,
+                            volume: item.volume,
+                            fadeIn: item.fadeIn,
+                            fadeOut: item.fadeOut,
+                            fadeIndex: item.fadeIndex
+                        });
+                    } else {
+                        // Converter Base64 de volta para binário
+                        const bin = Uint8Array.from(atob(item.data), c => c.charCodeAt(0)).buffer;
+                        store.put({ 
+                            uid: item.uid,
+                            page: item.page, 
+                            id: item.id, 
+                            name: item.name, 
+                            data: bin 
+                        });
+                    }
                 }
                 
                 tx.oncomplete = () => { 
@@ -575,6 +827,7 @@
         reader.readAsText(file);
     }
 
+    // Funções auxiliares (mantidas do código original)
     function clickInput(id) { 
         document.getElementById(`in-${id}`).click(); 
     }
@@ -585,6 +838,12 @@
             if(m.id !== `menu-${id}`) m.classList.remove('show');
         });
         document.getElementById(`menu-${id}`).classList.toggle('show');
+    }
+    
+    function toggleStopGroup(id) {
+        // Será implementado na ETAPA 4
+        showAlert("GRUPO STOP (Em desenvolvimento na ETAPA 4)");
+        document.querySelectorAll('.ctx-menu').forEach(m => m.classList.remove('show'));
     }
     
     window.onclick = () => {
@@ -602,4 +861,3 @@
 </script>
 </body>
 </html>
-
