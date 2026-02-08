@@ -58,7 +58,7 @@
         .pad { 
             background: var(--pad-bg); height: 115px; border-radius: 10px; 
             border: 2px solid #333; position: relative; cursor: pointer; 
-            display: flex; flex-direction: column; padding: 10px 15px; 
+            display: flex; flex-direction: column; padding: 10px 15px 10px 25px; /* Mais padding à esquerda para o volume */
             box-sizing: border-box; transition: 0.15s;
         }
         .pad.active { border-color: var(--accent); background: #080808; }
@@ -71,14 +71,102 @@
         }
 
         .p-idx { position: absolute; top: 8px; left: 12px; font-size: 0.9rem; font-weight: 800; color: #444; }
-        .pad-controls { position: absolute; top: 6px; right: 10px; display: flex; gap: 8px; z-index: 10; }
-        .btn-loop { background: none; border: none; color: #555; cursor: pointer; padding: 4px; display: flex; }
+        
+        /* Área de controles do pad - reorganizada */
+        .pad-controls { 
+            position: absolute; top: 6px; right: 10px; 
+            display: flex; gap: 8px; z-index: 10; 
+            align-items: center;
+        }
+        
+        .btn-loop { 
+            background: none; border: none; color: #555; 
+            cursor: pointer; padding: 4px; display: flex;
+            width: 24px; height: 24px;
+        }
         .btn-loop.active { color: var(--primary); }
         .btn-loop svg { width: 18px; height: 18px; fill: currentColor; }
-        .p-menu-trigger { color: var(--dim); font-size: 1.6rem; cursor: pointer; line-height: 0.6; font-weight: bold; }
         
-        .p-title { font-size: 1.2rem; font-weight: 800; color: var(--primary); text-align: center; margin-top: 18px; z-index: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .p-footer { margin-top: auto; display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: 600; z-index: 2; }
+        /* Controles de Fade - ao lado do loop */
+        .fade-control { 
+            font-size: 0.65rem; color: var(--dim); font-weight: 600;
+            white-space: nowrap; cursor: pointer; padding: 2px 6px;
+            border-radius: 3px; background: rgba(0,0,0,0.3);
+            border: 1px solid #333; min-width: 50px; text-align: center;
+        }
+        .fade-control:hover { background: rgba(255,255,255,0.1); border-color: #555; }
+        
+        .p-menu-trigger { 
+            color: var(--dim); font-size: 1.6rem; cursor: pointer; 
+            line-height: 0.6; font-weight: bold; margin-left: 4px;
+        }
+        
+        .p-title { 
+            font-size: 1.2rem; font-weight: 800; color: var(--primary); 
+            text-align: center; margin-top: 18px; z-index: 2; 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            padding-right: 10px; /* Compensa o volume vertical */
+        }
+        
+        .p-footer { 
+            margin-top: auto; display: flex; justify-content: space-between; 
+            font-size: 0.95rem; font-weight: 600; z-index: 2;
+            padding-right: 10px; /* Compensa o volume vertical */
+        }
+        
+        /* VOLUME VERTICAL - como na sua imagem */
+        .pad-volume-vertical {
+            position: absolute;
+            left: 6px;
+            top: 30px;
+            bottom: 8px;
+            width: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 3;
+        }
+        
+        .vol-vertical-track {
+            flex-grow: 1;
+            width: 4px;
+            background: #333;
+            border-radius: 2px;
+            position: relative;
+            margin: 4px 0;
+        }
+        
+        .vol-vertical-slider {
+            position: absolute;
+            left: -6px;
+            width: 16px;
+            height: 16px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            z-index: 2;
+            transform: translateY(-50%);
+        }
+        
+        .vol-vertical-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: var(--primary);
+            border-radius: 2px;
+            opacity: 0.5;
+            transition: height 0.1s;
+        }
+        
+        /* Indicadores de volume mínimo/máximo */
+        .vol-min, .vol-max {
+            font-size: 0.5rem;
+            color: #666;
+            font-weight: 800;
+        }
+        .vol-max { margin-bottom: 2px; }
+        .vol-min { margin-top: 2px; }
         
         .console-footer { margin-top: 5px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 0.7rem; color: #555; font-weight: 600; }
 
@@ -97,44 +185,20 @@
         .ctx-opt { padding: 10px 18px; font-size: 0.8rem; cursor: pointer; border-bottom: 1px solid #333; font-weight: 700; color: #fff; white-space: nowrap; }
         .ctx-opt:hover { background: var(--primary); color: #000; }
 
-        /* ETAPA 1: Controles de volume e fade nos pads */
-        .pad-volume-controls {
-            position: absolute; bottom: 8px; left: 10px; right: 10px;
-            display: flex; align-items: center; gap: 8px; opacity: 0;
-            transition: opacity 0.3s; z-index: 3;
-        }
-        .pad:hover .pad-volume-controls { opacity: 1; }
-
-        .vol-slider { 
-            flex-grow: 1; height: 4px; -webkit-appearance: none;
-            background: #333; border-radius: 2px; outline: none;
-        }
-        .vol-slider::-webkit-slider-thumb {
-            -webkit-appearance: none; width: 12px; height: 12px;
-            background: var(--primary); border-radius: 50%; cursor: pointer;
-        }
-        .vol-slider::-moz-range-thumb {
-            width: 12px; height: 12px; background: var(--primary);
-            border-radius: 50%; cursor: pointer; border: none;
-        }
-
-        .fade-control { 
-            font-size: 0.65rem; color: var(--dim); font-weight: 600;
-            white-space: nowrap; min-width: 40px; text-align: right;
-            cursor: pointer; padding: 2px 4px; border-radius: 3px;
-        }
-        .fade-control:hover { background: rgba(255,255,255,0.1); }
-
         @media (max-width: 768px) {
             .container { padding: 10px; zoom: 0.95; }
             .grid-pads { grid-template-columns: repeat(2, 1fr); }
             .master-strip { grid-template-columns: 1fr; gap: 10px; }
             .page-tabs { flex-wrap: wrap; }
+            .pad { padding: 10px 12px 10px 22px; }
+            .pad-volume-vertical { left: 4px; }
         }
         @media (max-width: 480px) {
             .grid-pads { grid-template-columns: 1fr; }
             .header-main { flex-direction: column; gap: 10px; }
             .icon-actions { width: 100%; justify-content: center; }
+            .pad { height: 100px; }
+            .p-title { font-size: 1rem; margin-top: 15px; }
         }
     </style>
 </head>
@@ -189,7 +253,7 @@
     // Sistema de Áudio
     let audioCtx, masterGain, analyser;
     let sounds = {}; let activeSources = {}; let currentPage = 'A'; let db; let loops = {};
-    let padVolumes = {}; let padFades = {}; let padGainNodes = {}; // ETAPA 1: Novas variáveis
+    let padVolumes = {}; let padFades = {}; let padGainNodes = {};
     
     function initAudio() {
         if (!audioCtx) {
@@ -214,33 +278,45 @@
         document.body.removeEventListener('click', initOnClick);
     });
 
-    // Criar os 9 pads com controles de volume
+    // Criar os 9 pads com NOVO LAYOUT
     const grid = document.getElementById('padGrid');
     for (let i = 1; i <= 9; i++) {
         const div = document.createElement('div');
         div.className = 'pad'; div.id = `pad-${i}`;
         div.innerHTML = `
             <div class="p-idx">${i}</div>
+            
+            <!-- NOVO: Volume Vertical -->
+            <div class="pad-volume-vertical" id="vol-container-${i}">
+                <div class="vol-max">|</div>
+                <div class="vol-vertical-track" id="vol-track-${i}">
+                    <div class="vol-vertical-fill" id="vol-fill-${i}"></div>
+                    <div class="vol-vertical-slider" id="vol-slider-${i}"></div>
+                </div>
+                <div class="vol-min">|</div>
+            </div>
+            
+            <!-- Controles superiores direitos -->
             <div class="pad-controls">
                 <button class="btn-loop" id="loop-${i}" onclick="toggleLoop(event, ${i})">
                     <svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
                 </button>
+                
+                <!-- Controle de Fade compacto -->
+                <div class="fade-control" id="fade-${i}" onclick="cycleFadeSetting(${i})" 
+                     title="Clique para alternar Fade In/Out">FADE</div>
+                
                 <div class="p-menu-trigger" onclick="toggleCtx(event, ${i})">⋮</div>
+                
                 <div class="ctx-menu" id="menu-${i}">
                     <div class="ctx-opt" onclick="clickInput(${i})">📁 CARREGAR ÁUDIO</div>
                     <div class="ctx-opt" onclick="toggleStopGroup(${i})" id="stopgroup-${i}">⏹️ GRUPO: OFF</div>
                     <div class="ctx-opt" style="color:#ff4d4d" onclick="clearSlot(${i})">🗑️ LIMPAR PAD</div>
                 </div>
             </div>
+            
             <div class="prog-bar" id="prog-${i}"></div>
             <div class="p-title" id="name-${i}">---</div>
-            
-            <!-- ETAPA 1: Controles de Volume e Fade -->
-            <div class="pad-volume-controls">
-                <input type="range" class="vol-slider" id="vol-${i}" min="0" max="1" step="0.01" value="1.0" 
-                       oninput="updatePadVolume(${i}, this.value)">
-                <div class="fade-control" id="fade-${i}" onclick="cycleFadeSetting(${i})">FADE: OFF</div>
-            </div>
             
             <div class="p-footer">
                 <span id="cur-${i}">00:00</span>
@@ -248,8 +324,90 @@
             </div>
             <input type="file" id="in-${i}" style="display:none" accept="audio/*" onchange="handleFile(event, ${i})">
         `;
+        
+        // Configurar interação do volume vertical
+        const setupVolumeSlider = (padId) => {
+            const container = document.getElementById(`vol-container-${padId}`);
+            const track = document.getElementById(`vol-track-${padId}`);
+            const slider = document.getElementById(`vol-slider-${padId}`);
+            const fill = document.getElementById(`vol-fill-${padId}`);
+            
+            let isDragging = false;
+            
+            const updateVolumeFromPosition = (clientY) => {
+                const rect = track.getBoundingClientRect();
+                let y = rect.bottom - clientY;
+                y = Math.max(0, Math.min(y, rect.height));
+                
+                const volume = y / rect.height;
+                updatePadVolume(padId, volume);
+                
+                // Atualizar posição visual
+                const percent = volume * 100;
+                slider.style.top = `${100 - percent}%`;
+                fill.style.height = `${percent}%`;
+            };
+            
+            // Evento de arrastar
+            slider.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                isDragging = true;
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+            
+            // Clicar na track também altera volume
+            track.addEventListener('click', (e) => {
+                e.stopPropagation();
+                updateVolumeFromPosition(e.clientY);
+            });
+            
+            const onMouseMove = (e) => {
+                if (!isDragging) return;
+                updateVolumeFromPosition(e.clientY);
+            };
+            
+            const onMouseUp = () => {
+                isDragging = false;
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+            
+            // Toque para mobile
+            slider.addEventListener('touchstart', (e) => {
+                e.stopPropagation();
+                isDragging = true;
+                document.addEventListener('touchmove', onTouchMove);
+                document.addEventListener('touchend', onTouchEnd);
+            });
+            
+            track.addEventListener('touchstart', (e) => {
+                e.stopPropagation();
+                if (e.touches[0]) {
+                    updateVolumeFromPosition(e.touches[0].clientY);
+                }
+            });
+            
+            const onTouchMove = (e) => {
+                if (!isDragging || !e.touches[0]) return;
+                updateVolumeFromPosition(e.touches[0].clientY);
+            };
+            
+            const onTouchEnd = () => {
+                isDragging = false;
+                document.removeEventListener('touchmove', onTouchMove);
+                document.removeEventListener('touchend', onTouchEnd);
+            };
+        };
+        
+        // Configurar volume após criar o elemento
+        setTimeout(() => setupVolumeSlider(i), 10);
+        
         div.onclick = (e) => { 
-            if(!e.target.closest('.pad-controls') && !e.target.closest('.ctx-menu') && !e.target.closest('.pad-volume-controls')) {
+            // Não disparar play se clicar nos controles
+            if(!e.target.closest('.pad-controls') && 
+               !e.target.closest('.pad-volume-vertical') &&
+               !e.target.closest('.ctx-menu')) {
                 initAudio();
                 playSound(i); 
             }
@@ -258,7 +416,7 @@
     }
 
     // Configurar banco de dados
-    const dbReq = indexedDB.open("MasterConsoleDB_v3", 2); // Nova versão para suportar settings
+    const dbReq = indexedDB.open("MasterConsoleDB_v3", 2);
     dbReq.onupgradeneeded = function(e) {
         console.log("Criando/atualizando banco de dados v3...");
         db = e.target.result;
@@ -293,71 +451,19 @@
         showAlert(`PAD ${id}: LOOP ${loops[key] ? 'ON' : 'OFF'}`);
     }
 
-    // Buscar dados APENAS da página atual
-    async function changePage(p) {
-        // NÃO paramos os sons ao mudar de página (será corrigido na ETAPA 2)
-        currentPage = p;
-        document.body.className = `pg-${p}`;
-        document.getElementById('pg-status').innerText = `MODO: BANCO ${p}`;
-        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.pg === p));
-        
-        // Resetar visualização
-        for(let i = 1; i <= 9; i++) {
-            // Só reseta se não estiver tocando
-            if (!activeSources[i] || activeSources[i].page !== currentPage) {
-                document.getElementById(`name-${i}`).innerText = "---";
-                document.getElementById(`rem-${i}`).innerText = "00:00";
-                document.getElementById(`prog-${i}`).style.width = "0%";
-                document.getElementById(`cur-${i}`).innerText = "00:00";
-            }
-            document.getElementById(`loop-${i}`).classList.toggle('active', !!loops[currentPage + i]);
-        }
-
-        sounds = {}; // Limpar cache de sons da página atual
-        
-        if (db) {
-            const tx = db.transaction("pads", "readonly");
-            const store = tx.objectStore("pads");
-            const index = store.index("page_idx");
-            
-            // Buscar SOMENTE os registros onde 'page' = página atual
-            const request = index.getAll(currentPage);
-            
-            request.onsuccess = async (e) => {
-                const pageData = e.target.result.filter(item => item.type !== 'settings');
-                console.log(`Carregando Banco ${p}:`, pageData.length, "áudio(s)");
-                
-                for(let item of pageData) {
-                    try {
-                        if (!audioCtx) initAudio();
-                        const buffer = await audioCtx.decodeAudioData(item.data.slice(0));
-                        sounds[item.id] = { 
-                            buffer, 
-                            name: item.name, 
-                            duration: buffer.duration
-                        };
-                        document.getElementById(`name-${item.id}`).innerText = item.name;
-                        document.getElementById(`rem-${item.id}`).innerText = formatTime(buffer.duration);
-                    } catch(err) {
-                        console.error("Erro ao decodificar áudio:", err);
-                    }
-                }
-                showAlert(`BANCO ${p} PRONTO`);
-                
-                // Carregar configurações dos pads
-                loadPadSettings();
-            };
-            
-            request.onerror = (e) => {
-                console.error("Erro ao buscar dados:", e.target.error);
-            };
-        }
-    }
-
-    // ETAPA 1: Volume individual e fade por pad
+    // Volume individual e fade por pad
     function updatePadVolume(padId, volume) {
         const key = `${currentPage}-${padId}`;
         padVolumes[key] = parseFloat(volume);
+        
+        // Atualizar visual do volume vertical
+        const slider = document.getElementById(`vol-slider-${padId}`);
+        const fill = document.getElementById(`vol-fill-${padId}`);
+        if (slider && fill) {
+            const percent = volume * 100;
+            slider.style.top = `${100 - percent}%`;
+            fill.style.height = `${percent}%`;
+        }
         
         // Atualizar volume se estiver tocando
         if (padGainNodes[key] && padGainNodes[key].gain) {
@@ -371,22 +477,42 @@
     function cycleFadeSetting(padId) {
         const key = `${currentPage}-${padId}`;
         const fadeOpts = [
-            { name: "OFF", in: 0, out: 0 },
-            { name: "IN 1s", in: 1, out: 0 },
-            { name: "OUT 1s", in: 0, out: 1 },
-            { name: "IN/OUT", in: 0.5, out: 0.5 },
-            { name: "IN 2s", in: 2, out: 0 },
-            { name: "LONG", in: 1, out: 3 }
+            { name: "OFF", symbol: "–", title: "Sem Fade" },
+            { name: "IN", symbol: "↗", title: "Fade In 1s" },
+            { name: "OUT", symbol: "↘", title: "Fade Out 1s" },
+            { name: "IO", symbol: "↗↘", title: "Fade In/Out 0.5s" },
+            { name: "IN2", symbol: "↗2", title: "Fade In 2s" },
+            { name: "LONG", symbol: "⏱️", title: "Fade In 1s / Out 3s" }
+        ];
+        
+        const fadeValues = [
+            { in: 0, out: 0 },
+            { in: 1, out: 0 },
+            { in: 0, out: 1 },
+            { in: 0.5, out: 0.5 },
+            { in: 2, out: 0 },
+            { in: 1, out: 3 }
         ];
         
         if (!padFades[key]) padFades[key] = { index: 0 };
         padFades[key].index = (padFades[key].index + 1) % fadeOpts.length;
         
         const opt = fadeOpts[padFades[key].index];
-        padFades[key].in = opt.in;
-        padFades[key].out = opt.out;
+        const vals = fadeValues[padFades[key].index];
         
-        document.getElementById(`fade-${padId}`).textContent = `FADE: ${opt.name}`;
+        padFades[key].in = vals.in;
+        padFades[key].out = vals.out;
+        
+        const fadeEl = document.getElementById(`fade-${padId}`);
+        fadeEl.textContent = opt.symbol;
+        fadeEl.title = opt.title;
+        
+        // Feedback visual breve
+        fadeEl.style.color = "var(--primary)";
+        setTimeout(() => {
+            fadeEl.style.color = "";
+        }, 300);
+        
         savePadSettings(padId);
     }
 
@@ -394,7 +520,7 @@
         const key = `${currentPage}-${padId}`;
         const volume = padVolumes[key] || 1;
         
-        if (!padFades[key]) {
+        if (!padFades[key] || (padFades[key].in === 0 && padFades[key].out === 0)) {
             // Sem fade, apenas volume
             const gainNode = audioCtx.createGain();
             gainNode.gain.value = volume;
@@ -471,17 +597,89 @@
                 
                 // Atualizar controles visuais se estiver na página atual
                 if (currentPage === item.page) {
-                    const volSlider = document.getElementById(`vol-${item.pad}`);
-                    if (volSlider) volSlider.value = item.volume || 1;
+                    // Volume vertical
+                    const slider = document.getElementById(`vol-slider-${item.pad}`);
+                    const fill = document.getElementById(`vol-fill-${item.pad}`);
+                    if (slider && fill) {
+                        const percent = (item.volume || 1) * 100;
+                        slider.style.top = `${100 - percent}%`;
+                        fill.style.height = `${percent}%`;
+                    }
                     
+                    // Fade
                     const fadeEl = document.getElementById(`fade-${item.pad}`);
                     if (fadeEl) {
-                        const opts = ["OFF", "IN 1s", "OUT 1s", "IN/OUT", "IN 2s", "LONG"];
-                        fadeEl.textContent = `FADE: ${opts[item.fadeIndex] || "OFF"}`;
+                        const symbols = ["–", "↗", "↘", "↗↘", "↗2", "⏱️"];
+                        const titles = [
+                            "Sem Fade",
+                            "Fade In 1s",
+                            "Fade Out 1s",
+                            "Fade In/Out 0.5s",
+                            "Fade In 2s",
+                            "Fade In 1s / Out 3s"
+                        ];
+                        const idx = item.fadeIndex || 0;
+                        fadeEl.textContent = symbols[idx] || "–";
+                        fadeEl.title = titles[idx] || "Sem Fade";
                     }
                 }
             });
         };
+    }
+
+    async function changePage(p) {
+        // NÃO paramos os sons ao mudar de página (será corrigido na ETAPA 2)
+        currentPage = p;
+        document.body.className = `pg-${p}`;
+        document.getElementById('pg-status').innerText = `MODO: BANCO ${p}`;
+        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.pg === p));
+        
+        // Resetar visualização
+        for(let i = 1; i <= 9; i++) {
+            // Só reseta se não estiver tocando
+            if (!activeSources[i] || activeSources[i].page !== currentPage) {
+                document.getElementById(`name-${i}`).innerText = "---";
+                document.getElementById(`rem-${i}`).innerText = "00:00";
+                document.getElementById(`prog-${i}`).style.width = "0%";
+                document.getElementById(`cur-${i}`).innerText = "00:00";
+            }
+            document.getElementById(`loop-${i}`).classList.toggle('active', !!loops[currentPage + i]);
+        }
+
+        sounds = {}; // Limpar cache de sons da página atual
+        
+        if (db) {
+            const tx = db.transaction("pads", "readonly");
+            const store = tx.objectStore("pads");
+            const index = store.index("page_idx");
+            
+            const request = index.getAll(currentPage);
+            
+            request.onsuccess = async (e) => {
+                const pageData = e.target.result.filter(item => item.type !== 'settings');
+                console.log(`Carregando Banco ${p}:`, pageData.length, "áudio(s)");
+                
+                for(let item of pageData) {
+                    try {
+                        if (!audioCtx) initAudio();
+                        const buffer = await audioCtx.decodeAudioData(item.data.slice(0));
+                        sounds[item.id] = { 
+                            buffer, 
+                            name: item.name, 
+                            duration: buffer.duration
+                        };
+                        document.getElementById(`name-${item.id}`).innerText = item.name;
+                        document.getElementById(`rem-${item.id}`).innerText = formatTime(buffer.duration);
+                    } catch(err) {
+                        console.error("Erro ao decodificar áudio:", err);
+                    }
+                }
+                showAlert(`BANCO ${p} PRONTO`);
+                
+                // Carregar configurações dos pads
+                loadPadSettings();
+            };
+        }
     }
 
     function playSound(id) {
@@ -529,9 +727,6 @@
             src.onended = () => { 
                 if(!loops[key]) {
                     stopSound(id);
-                } else {
-                    // Se for loop, não para automaticamente
-                    // O loop será controlado pelo toggleLoop
                 }
             };
         } catch(err) {
@@ -594,7 +789,6 @@
         if(e.key === '0' || e.key === 'Escape') stopAll();
     });
 
-    // Salvar com UID único que inclui a página
     async function handleFile(e, id) {
         const file = e.target.files[0]; 
         if(!file) return;
@@ -610,7 +804,6 @@
             const buffer = await audioCtx.decodeAudioData(raw.slice(0));
             const name = file.name.replace(/\.[^/.]+$/, "").substring(0, 20);
             
-            // Criar um ID único combinando PÁGINA + NÚMERO DO PAD
             const uid = `${currentPage}-${id}`;
             sounds[id] = { buffer, name, duration: buffer.duration };
             
@@ -651,8 +844,20 @@
         
         document.getElementById(`name-${id}`).innerText = "---";
         document.getElementById(`rem-${id}`).innerText = "00:00";
-        document.getElementById(`vol-${id}`).value = 1.0;
-        document.getElementById(`fade-${id}`).textContent = "FADE: OFF";
+        
+        // Resetar controles visuais
+        const slider = document.getElementById(`vol-slider-${id}`);
+        const fill = document.getElementById(`vol-fill-${id}`);
+        if (slider && fill) {
+            slider.style.top = "0%";
+            fill.style.height = "100%";
+        }
+        
+        const fadeEl = document.getElementById(`fade-${id}`);
+        if (fadeEl) {
+            fadeEl.textContent = "–";
+            fadeEl.title = "Sem Fade";
+        }
         
         const key = `${currentPage}-${id}`;
         delete padVolumes[key];
@@ -699,7 +904,6 @@
         requestAnimationFrame(updateVU);
     }
 
-    // Função SALVAR que funciona no GitHub Pages
     async function saveProject() {
         if (!db) {
             showAlert("BANCO DE DADOS NÃO DISPONÍVEL");
@@ -716,10 +920,8 @@
                 return;
             }
             
-            // Converter dados para JSON (binário para Base64)
             const processed = allData.map(item => {
                 if (item.type === 'settings') {
-                    // Settings não precisam de data binária
                     return { 
                         type: 'settings',
                         page: item.page, 
@@ -749,17 +951,14 @@
             const blob = new Blob([jsonData], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             
-            // Criar e disparar o link de download
             const a = document.createElement('a');
             a.href = url;
             a.download = `MasterConsole_Backup_${new Date().toISOString().slice(0,10)}.json`;
             
-            // Adicionar à página, clicar e remover
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             
-            // Liberar memória
             setTimeout(() => URL.revokeObjectURL(url), 100);
             
             showAlert(`BACKUP SALVO (${allData.filter(d => d.type !== 'settings').length} áudio(s))`);
@@ -785,11 +984,10 @@
                 const data = JSON.parse(ev.target.result);
                 const tx = db.transaction("pads", "readwrite");
                 const store = tx.objectStore("pads");
-                store.clear(); // Limpar banco atual antes de restaurar
+                store.clear();
                 
                 for(let item of data) {
                     if (item.type === 'settings') {
-                        // Restaurar settings
                         store.put({ 
                             uid: `settings-${item.page}-${item.pad}`,
                             type: 'settings',
@@ -801,7 +999,6 @@
                             fadeIndex: item.fadeIndex
                         });
                     } else {
-                        // Converter Base64 de volta para binário
                         const bin = Uint8Array.from(atob(item.data), c => c.charCodeAt(0)).buffer;
                         store.put({ 
                             uid: item.uid,
@@ -827,7 +1024,6 @@
         reader.readAsText(file);
     }
 
-    // Funções auxiliares (mantidas do código original)
     function clickInput(id) { 
         document.getElementById(`in-${id}`).click(); 
     }
@@ -841,7 +1037,6 @@
     }
     
     function toggleStopGroup(id) {
-        // Será implementado na ETAPA 4
         showAlert("GRUPO STOP (Em desenvolvimento na ETAPA 4)");
         document.querySelectorAll('.ctx-menu').forEach(m => m.classList.remove('show'));
     }
