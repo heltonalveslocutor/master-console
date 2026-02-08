@@ -72,16 +72,16 @@
 
         .p-idx { position: absolute; top: 8px; left: 12px; font-size: 0.9rem; font-weight: 800; color: #444; }
         
-        /* NOVA ÁREA DE CONTROLES: Volume → Fade → Loop */
+        /* ÁREA DE CONTROLES ATUALIZADA */
         .pad-controls { 
             position: absolute; top: 6px; right: 10px; 
-            display: flex; gap: 6px; z-index: 10; 
+            display: flex; gap: 8px; z-index: 10; 
             align-items: center;
         }
         
-        /* VOLUME SLIDER HORIZONTAL (primeiro) */
+        /* VOLUME SLIDER HORIZONTAL (com mais espaçamento) */
         .volume-horizontal {
-            width: 40px;
+            width: 42px;
             height: 16px;
             display: flex;
             align-items: center;
@@ -117,43 +117,51 @@
             z-index: 2;
         }
         
-        /* FADE CONTROL (segundo) */
-        .fade-control { 
-            width: 20px;
-            height: 20px;
-            font-size: 0.7rem;
-            color: var(--dim);
-            font-weight: 600;
-            cursor: pointer;
-            border-radius: 4px;
-            background: rgba(30, 30, 30, 0.7);
-            border: 1px solid #444;
+        /* BOTÕES QUADRADOS ARREDONDADOS (FADE e LOOP) */
+        .btn-square {
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #444;
+            background: rgba(30, 30, 30, 0.7);
         }
-        .fade-control:hover { 
+        
+        /* FADE CONTROL - quadrado arredondado */
+        .fade-control { 
+            font-size: 0.75rem;
+            color: var(--dim);
+            font-weight: 600;
+        }
+        
+        /* LOOP BUTTON - quadrado arredondado */
+        .btn-loop { 
+            color: #555;
+        }
+        .btn-loop svg { 
+            width: 14px; 
+            height: 14px; 
+            fill: currentColor;
+        }
+        
+        /* ESTADO ATIVO - contorno luminoso com cor do banco */
+        .btn-square.active {
+            border: 2px solid var(--primary);
+            box-shadow: 0 0 8px var(--primary);
+            background: rgba(0, 229, 255, 0.15);
+            color: var(--primary) !important;
+        }
+        
+        .btn-square:hover { 
             background: rgba(50, 50, 50, 0.8); 
             border-color: #666;
         }
         
-        /* LOOP BUTTON (terceiro) */
-        .btn-loop { 
-            background: none; 
-            border: none; 
-            color: #555; 
-            cursor: pointer; 
-            padding: 2px;
-            width: 22px;
-            height: 22px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .btn-loop.active { color: var(--primary); }
-        .btn-loop svg { width: 16px; height: 16px; fill: currentColor; }
-        
-        /* MENU TRIGGER (quarto) */
+        /* MENU TRIGGER */
         .p-menu-trigger { 
             color: var(--dim); 
             font-size: 1.6rem; 
@@ -197,7 +205,8 @@
             .master-strip { grid-template-columns: 1fr; gap: 10px; }
             .page-tabs { flex-wrap: wrap; }
             .pad { padding: 10px 12px; }
-            .volume-horizontal { width: 36px; }
+            .volume-horizontal { width: 40px; }
+            .btn-square { width: 20px; height: 20px; }
         }
         @media (max-width: 480px) {
             .grid-pads { grid-template-columns: 1fr; }
@@ -205,8 +214,11 @@
             .icon-actions { width: 100%; justify-content: center; }
             .pad { height: 100px; }
             .p-title { font-size: 1rem; margin-top: 15px; }
-            .volume-horizontal { width: 32px; }
-            .pad-controls { gap: 4px; }
+            .volume-horizontal { width: 36px; }
+            .pad-controls { gap: 6px; }
+            .btn-square { width: 18px; height: 18px; }
+            .fade-control { font-size: 0.65rem; }
+            .btn-loop svg { width: 12px; height: 12px; }
         }
     </style>
 </head>
@@ -286,7 +298,7 @@
         document.body.removeEventListener('click', initOnClick);
     });
 
-    // Criar os 9 pads com NOVA ORDEM: Volume → Fade → Loop
+    // Criar os 9 pads com layout atualizado
     const grid = document.getElementById('padGrid');
     for (let i = 1; i <= 9; i++) {
         const div = document.createElement('div');
@@ -294,9 +306,9 @@
         div.innerHTML = `
             <div class="p-idx">${i}</div>
             
-            <!-- NOVA ORDEM: Volume → Fade → Loop -->
+            <!-- CONTROLES COM NOVO LAYOUT -->
             <div class="pad-controls">
-                <!-- 1. VOLUME SLIDER HORIZONTAL -->
+                <!-- 1. VOLUME SLIDER HORIZONTAL (com mais espaçamento) -->
                 <div class="volume-horizontal" id="vol-container-${i}">
                     <div class="vol-horizontal-track" id="vol-track-${i}">
                         <div class="vol-horizontal-fill" id="vol-fill-${i}"></div>
@@ -304,12 +316,12 @@
                     </div>
                 </div>
                 
-                <!-- 2. FADE CONTROL -->
-                <div class="fade-control" id="fade-${i}" onclick="cycleFadeSetting(${i})" 
+                <!-- 2. FADE CONTROL - quadrado arredondado -->
+                <div class="btn-square fade-control" id="fade-${i}" onclick="cycleFadeSetting(${i})" 
                      title="Clique para alternar Fade">–</div>
                 
-                <!-- 3. LOOP BUTTON -->
-                <button class="btn-loop" id="loop-${i}" onclick="toggleLoop(event, ${i})">
+                <!-- 3. LOOP BUTTON - quadrado arredondado -->
+                <button class="btn-square btn-loop" id="loop-${i}" onclick="toggleLoop(event, ${i})" title="Loop ON/OFF">
                     <svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
                 </button>
                 
@@ -453,7 +465,8 @@
         e.stopPropagation();
         const key = currentPage + id;
         loops[key] = !loops[key];
-        document.getElementById(`loop-${id}`).classList.toggle('active', loops[key]);
+        const loopBtn = document.getElementById(`loop-${id}`);
+        loopBtn.classList.toggle('active', loops[key]);
         showAlert(`PAD ${id}: LOOP ${loops[key] ? 'ON' : 'OFF'}`);
     }
 
@@ -513,12 +526,10 @@
         fadeEl.textContent = opt.symbol;
         fadeEl.title = opt.title;
         
-        // Feedback visual breve
-        fadeEl.style.backgroundColor = "rgba(0, 229, 255, 0.2)";
-        fadeEl.style.borderColor = "var(--primary)";
+        // Feedback visual - contorno luminoso temporário
+        fadeEl.classList.add('active');
         setTimeout(() => {
-            fadeEl.style.backgroundColor = "";
-            fadeEl.style.borderColor = "";
+            fadeEl.classList.remove('active');
         }, 300);
         
         savePadSettings(padId);
@@ -630,6 +641,14 @@
                         fadeEl.textContent = symbols[idx] || "–";
                         fadeEl.title = titles[idx] || "Sem Fade";
                     }
+                    
+                    // Loop
+                    const loopBtn = document.getElementById(`loop-${item.pad}`);
+                    const loopKey = `${item.page}-${item.pad}`;
+                    if (loopBtn) {
+                        // Note: Loop status não é salvo em settings, precisa ser recalculado
+                        // Apenas aplica estilo se loops[loopKey] existir
+                    }
                 }
             });
         };
@@ -651,7 +670,10 @@
                 document.getElementById(`prog-${i}`).style.width = "0%";
                 document.getElementById(`cur-${i}`).innerText = "00:00";
             }
-            document.getElementById(`loop-${i}`).classList.toggle('active', !!loops[currentPage + i]);
+            // Atualizar estado visual do loop
+            const loopKey = currentPage + i;
+            const loopBtn = document.getElementById(`loop-${i}`);
+            loopBtn.classList.toggle('active', !!loops[loopKey]);
         }
 
         sounds = {}; // Limpar cache de sons da página atual
@@ -865,11 +887,18 @@
         if (fadeEl) {
             fadeEl.textContent = "–";
             fadeEl.title = "Sem Fade";
+            fadeEl.classList.remove('active');
+        }
+        
+        const loopBtn = document.getElementById(`loop-${id}`);
+        if (loopBtn) {
+            loopBtn.classList.remove('active');
         }
         
         const key = `${currentPage}-${id}`;
         delete padVolumes[key];
         delete padFades[key];
+        delete loops[key];
         
         showAlert(`PAD ${id} LIMPO`);
     }
