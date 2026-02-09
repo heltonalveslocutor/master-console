@@ -49,6 +49,25 @@
         .tab { background: #1a1a1a; border: 2px solid #333; color: var(--dim); padding: 6px 25px; border-radius: 6px; cursor: pointer; font-weight: 800; font-size: 0.85rem; transition: 0.3s; }
         .tab.active { background: var(--primary); color: #000; border-color: var(--primary); }
 
+        /* ETAPA 2: Indicador de áudio ativo */
+        .active-audio-indicator {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 0.85rem; font-weight: 800; color: var(--accent);
+            background: rgba(0, 255, 136, 0.1); padding: 6px 12px;
+            border-radius: 6px; border: 1px solid rgba(0, 255, 136, 0.3);
+            max-width: 250px; overflow: hidden; white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+        .active-audio-indicator:empty { display: none; }
+        .active-audio-indicator .playing-icon {
+            color: var(--accent); font-size: 1rem; animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
         .master-strip { display: grid; grid-template-columns: 1fr 220px; gap: 20px; background: #000; padding: 10px 18px; border-radius: 8px; border: 1px solid #222; align-items: center; }
         .vu-container { height: 10px; background: #111; border-radius: 5px; overflow: hidden; border: 1px solid #333; }
         #vu-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #00ff88 70%, #ffcc00 85%, #ff3b3b 100%); transition: width 0.07s; }
@@ -205,6 +224,74 @@
         .ctx-opt { padding: 10px 18px; font-size: 0.8rem; cursor: pointer; border-bottom: 1px solid #333; font-weight: 700; color: #fff; white-space: nowrap; }
         .ctx-opt:hover { background: var(--primary); color: #000; }
 
+        /* ETAPA 3: Modal para Stop Groups */
+        .stop-group-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); display: none;
+            justify-content: center; align-items: center; z-index: 2000;
+        }
+        .stop-group-modal.active { display: flex; }
+        .stop-group-content {
+            background: var(--card); padding: 25px; border-radius: 12px;
+            border: 1px solid var(--primary); max-width: 450px; width: 90%;
+            box-shadow: 0 0 40px rgba(0, 229, 255, 0.2);
+        }
+        .stop-group-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px;
+        }
+        .stop-group-header h3 {
+            color: var(--primary); font-size: 1.2rem; margin: 0;
+            font-family: 'Rajdhani', sans-serif;
+        }
+        .close-modal {
+            background: none; border: none; color: var(--dim);
+            font-size: 1.5rem; cursor: pointer; line-height: 1;
+            padding: 0; width: 30px; height: 30px;
+        }
+        .stop-group-desc {
+            color: var(--dim); font-size: 0.9rem; margin-bottom: 20px;
+            line-height: 1.4;
+        }
+        .stop-group-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+            margin-bottom: 25px;
+        }
+        .stop-group-check {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px; background: #1a1a1a; border-radius: 6px;
+            border: 1px solid #333; cursor: pointer; transition: 0.2s;
+        }
+        .stop-group-check:hover { border-color: var(--primary); }
+        .stop-group-check input[type="checkbox"] {
+            width: 18px; height: 18px; accent-color: var(--primary);
+            cursor: pointer;
+        }
+        .stop-group-check label {
+            cursor: pointer; font-weight: 600; font-size: 0.9rem;
+            flex: 1;
+        }
+        .stop-group-actions {
+            display: flex; justify-content: flex-end; gap: 10px;
+        }
+        .stop-group-btn {
+            padding: 10px 20px; border-radius: 6px; border: 2px solid;
+            font-weight: 800; font-size: 0.85rem; cursor: pointer;
+            transition: 0.2s;
+        }
+        .stop-group-save {
+            background: var(--primary); color: #000; border-color: var(--primary);
+        }
+        .stop-group-save:hover {
+            background: #00d4ff; border-color: #00d4ff;
+        }
+        .stop-group-cancel {
+            background: transparent; color: var(--dim); border-color: #444;
+        }
+        .stop-group-cancel:hover {
+            border-color: #666; color: #fff;
+        }
+
         @media (max-width: 768px) {
             .container { padding: 10px; zoom: 0.95; }
             .grid-pads { grid-template-columns: repeat(2, 1fr); }
@@ -213,6 +300,7 @@
             .pad { padding: 10px 12px; }
             .volume-horizontal { width: 42px; }
             .pad-controls { gap: 8px; }
+            .active-audio-indicator { max-width: 200px; font-size: 0.8rem; }
         }
         @media (max-width: 480px) {
             .grid-pads { grid-template-columns: 1fr; }
@@ -225,12 +313,37 @@
             .btn-square { width: 20px; height: 20px; }
             .fade-control { font-size: 0.7rem; }
             .btn-loop svg { width: 14px; height: 14px; }
+            .active-audio-indicator { max-width: 180px; padding: 4px 8px; }
         }
     </style>
 </head>
 <body class="pg-A">
 
 <div id="alert"></div>
+
+<!-- ETAPA 3: Modal para Stop Groups -->
+<div class="stop-group-modal" id="stopGroupModal">
+    <div class="stop-group-content">
+        <div class="stop-group-header">
+            <h3 id="modalTitle">CONFIGURAR STOP GROUP</h3>
+            <button class="close-modal" onclick="closeStopGroupModal()">×</button>
+        </div>
+        <div class="stop-group-desc" id="modalDesc">
+            Selecione quais pads serão parados quando este pad tocar.
+        </div>
+        <div class="stop-group-grid" id="stopGroupGrid">
+            <!-- Checkboxes serão gerados dinamicamente -->
+        </div>
+        <div class="stop-group-actions">
+            <button class="stop-group-btn stop-group-cancel" onclick="closeStopGroupModal()">
+                CANCELAR
+            </button>
+            <button class="stop-group-btn stop-group-save" onclick="saveStopGroup()">
+                SALVAR
+            </button>
+        </div>
+    </div>
+</div>
 
 <div class="container">
     <div class="header-main">
@@ -250,6 +363,10 @@
             <div class="tab" data-pg="B" onclick="changePage('B')">BANCO B</div>
             <div class="tab" data-pg="C" onclick="changePage('C')">BANCO C</div>
         </div>
+        
+        <!-- ETAPA 2: Indicador de áudio ativo entre bancos -->
+        <div class="active-audio-indicator" id="activeAudioIndicator"></div>
+        
         <div id="pg-status" style="font-size:0.85rem; font-weight:800; color:var(--primary);">MODO: BANCO A</div>
     </div>
 
@@ -280,6 +397,10 @@
     let audioCtx, masterGain, analyser;
     let sounds = {}; let activeSources = {}; let currentPage = 'A'; let db; let loops = {};
     let padVolumes = {}; let padFades = {}; let padGainNodes = {};
+    
+    // ETAPA 2: Rastrear áudios ativos entre bancos
+    let activeAudios = new Map(); // Guarda info de áudios tocando
+    let stopGroups = {}; // ETAPA 3: Grupos de stop
     
     function initAudio() {
         if (!audioCtx) {
@@ -336,7 +457,7 @@
                 
                 <div class="ctx-menu" id="menu-${i}">
                     <div class="ctx-opt" onclick="clickInput(${i})">📁 CARREGAR ÁUDIO</div>
-                    <div class="ctx-opt" onclick="toggleStopGroup(${i})" id="stopgroup-${i}">⏹️ GRUPO: OFF</div>
+                    <div class="ctx-opt" onclick="openStopGroupModal(${i})" id="stopgroup-opt-${i}">⏹️ GRUPO STOP: NENHUM</div>
                     <div class="ctx-opt" style="color:#ff4d4d" onclick="clearSlot(${i})">🗑️ LIMPAR PAD</div>
                 </div>
             </div>
@@ -440,9 +561,9 @@
     }
 
     // Configurar banco de dados
-    const dbReq = indexedDB.open("MasterConsoleDB_v3", 2);
+    const dbReq = indexedDB.open("MasterConsoleDB_v4", 3); // Versão atualizada
     dbReq.onupgradeneeded = function(e) {
-        console.log("Criando/atualizando banco de dados v3...");
+        console.log("Criando/atualizando banco de dados v4...");
         db = e.target.result;
         if (!db.objectStoreNames.contains('pads')) {
             const store = db.createObjectStore('pads', { keyPath: 'uid' });
@@ -452,8 +573,9 @@
     };
     dbReq.onsuccess = (e) => { 
         db = e.target.result; 
-        console.log("Banco de dados v3 pronto.");
+        console.log("Banco de dados v4 pronto.");
         changePage('A'); 
+        loadStopGroups(); // ETAPA 3: Carregar grupos de stop
     };
     dbReq.onerror = (e) => { 
         console.error("Erro ao abrir banco de dados:", e.target.error); 
@@ -685,16 +807,51 @@
         };
     }
 
+    // ETAPA 2: Atualizar indicador de áudio ativo
+    function updateActiveAudioIndicator() {
+        const indicator = document.getElementById('activeAudioIndicator');
+        
+        if (activeAudios.size === 0) {
+            indicator.innerHTML = '';
+            return;
+        }
+        
+        let html = '<span class="playing-icon">▶️</span> ';
+        let activeList = [];
+        
+        activeAudios.forEach((info, key) => {
+            if (info.playing) {
+                activeList.push(`Pad ${info.pad} (Banco ${info.page})`);
+            }
+        });
+        
+        if (activeList.length > 0) {
+            html += activeList.join(', ');
+        } else {
+            html = '';
+        }
+        
+        indicator.innerHTML = html;
+    }
+
     async function changePage(p) {
         currentPage = p;
         document.body.className = `pg-${p}`;
         document.getElementById('pg-status').innerText = `MODO: BANCO ${p}`;
         document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.pg === p));
         
-        // Resetar visualização
+        // ETAPA 2: Atualizar indicador de áudios ativos
+        updateActiveAudioIndicator();
+        
+        // Resetar visualização apenas dos pads não ativos
         for(let i = 1; i <= 9; i++) {
-            // Só reseta se não estiver tocando
-            if (!activeSources[i] || activeSources[i].page !== currentPage) {
+            // Verificar se o pad está tocando em algum banco
+            const isPlayingElsewhere = Array.from(activeAudios.keys()).some(key => {
+                const info = activeAudios.get(key);
+                return info.pad === i && info.playing;
+            });
+            
+            if (!isPlayingElsewhere) {
                 document.getElementById(`name-${i}`).innerText = "---";
                 document.getElementById(`rem-${i}`).innerText = "00:00";
                 document.getElementById(`prog-${i}`).style.width = "0%";
@@ -734,11 +891,24 @@
                 
                 // Carregar configurações dos pads (inclui loop)
                 loadPadSettings();
+                updateStopGroupMenuLabels(); // ETAPA 3: Atualizar labels dos menus
             };
         }
     }
 
     function playSound(id) {
+        // ETAPA 3: Verificar stop groups
+        const stopGroupKey = `${currentPage}-${id}`;
+        if (stopGroups[stopGroupKey]) {
+            stopGroups[stopGroupKey].forEach(target => {
+                const [targetPage, targetId] = target.split('-');
+                // Parar o áudio se estiver tocando
+                if (activeAudios.has(target) && activeAudios.get(target).playing) {
+                    stopSoundFromAnywhere(targetId, targetPage);
+                }
+            });
+        }
+        
         const key = currentPage + id;
         if(!sounds[id]) {
             showAlert(`PAD ${id} VAZIO`);
@@ -768,6 +938,17 @@
             const start = audioCtx.currentTime;
             src.start(0);
             activeSources[id] = { source: src, gain: gainNode, page: currentPage };
+            
+            // ETAPA 2: Registrar áudio ativo
+            const audioKey = `${currentPage}-${id}`;
+            activeAudios.set(audioKey, {
+                pad: id,
+                page: currentPage,
+                playing: true,
+                startTime: start,
+                duration: sounds[id].duration
+            });
+            
             document.getElementById(`pad-${id}`).classList.add('active');
             
             const animate = () => {
@@ -776,6 +957,12 @@
                 document.getElementById(`prog-${id}`).style.width = (elapsed / sounds[id].duration * 100) + "%";
                 document.getElementById(`cur-${id}`).innerText = formatTime(elapsed);
                 document.getElementById(`rem-${id}`).innerText = "-" + formatTime(sounds[id].duration - elapsed);
+                
+                // ETAPA 2: Atualizar indicador se o áudio ainda estiver ativo
+                if (activeAudios.has(audioKey)) {
+                    activeAudios.get(audioKey).elapsed = elapsed;
+                }
+                
                 requestAnimationFrame(animate);
             };
             animate();
@@ -785,6 +972,10 @@
                     stopSound(id);
                 }
             };
+            
+            // ETAPA 2: Atualizar indicador
+            updateActiveAudioIndicator();
+            
         } catch(err) {
             console.error("Erro ao tocar:", err);
             showAlert("ERRO AO TOCAR");
@@ -792,6 +983,8 @@
     }
 
     function stopSound(id, immediate = false) {
+        const audioKey = `${currentPage}-${id}`;
+        
         if(activeSources[id]) { 
             try { 
                 const key = `${activeSources[id].page}-${id}`;
@@ -811,24 +1004,59 @@
                         if (activeSources[id]?.source) {
                             try { activeSources[id].source.stop(); } catch(e) {}
                         }
+                        // ETAPA 2: Remover do registro
+                        activeAudios.delete(audioKey);
+                        updateActiveAudioIndicator();
                     }, padFades[key].out * 1000);
                 } else {
                     // Parada imediata
                     activeSources[id].source.stop();
+                    // ETAPA 2: Remover do registro
+                    activeAudios.delete(audioKey);
+                    updateActiveAudioIndicator();
                 }
             } catch(e) {} 
             activeSources[id] = null;
         }
+        
+        // ETAPA 2: Atualizar registro
+        if (activeAudios.has(audioKey)) {
+            activeAudios.get(audioKey).playing = false;
+        }
+        
         document.getElementById(`pad-${id}`).classList.remove('active');
         document.getElementById(`prog-${id}`).style.width = "0%";
         document.getElementById(`cur-${id}`).innerText = "00:00";
         if (sounds[id]) {
             document.getElementById(`rem-${id}`).innerText = formatTime(sounds[id].duration);
         }
+        
+        // ETAPA 2: Atualizar indicador
+        updateActiveAudioIndicator();
+    }
+
+    // ETAPA 2: Parar som de qualquer banco
+    function stopSoundFromAnywhere(padId, page) {
+        const audioKey = `${page}-${padId}`;
+        
+        // Se estiver tocando na página atual
+        if (page === currentPage && activeSources[padId]) {
+            stopSound(padId, true);
+        } else {
+            // Se estiver tocando em outro banco
+            if (activeAudios.has(audioKey)) {
+                activeAudios.get(audioKey).playing = false;
+                activeAudios.delete(audioKey);
+                updateActiveAudioIndicator();
+            }
+        }
     }
 
     function stopAll() { 
-        Object.keys(activeSources).forEach(id => stopSound(id)); 
+        // ETAPA 2: Parar todos os áudios de todos os bancos
+        activeAudios.clear();
+        Object.keys(activeSources).forEach(id => stopSound(id, true)); 
+        updateActiveAudioIndicator();
     }
 
     function formatTime(s) {
@@ -896,6 +1124,11 @@
             // Também limpar configurações
             const settingsUid = `settings-${uid}`;
             tx.objectStore("pads").delete(settingsUid);
+            
+            // ETAPA 3: Limpar stop groups
+            const stopGroupUid = `stopgroup-${uid}`;
+            tx.objectStore("pads").delete(stopGroupUid);
+            delete stopGroups[uid];
         }
         
         document.getElementById(`name-${id}`).innerText = "---";
@@ -927,6 +1160,8 @@
         delete padFades[key];
         delete loops[key];
         
+        updateStopGroupMenuLabels(); // ETAPA 3: Atualizar menu
+        
         showAlert(`PAD ${id} LIMPO`);
     }
 
@@ -937,6 +1172,8 @@
             loops = {};
             padVolumes = {};
             padFades = {};
+            stopGroups = {}; // ETAPA 3: Limpar grupos
+            activeAudios.clear(); // ETAPA 2: Limpar áudios ativos
             
             if (db) {
                 const tx = db.transaction("pads", "readwrite");
@@ -996,6 +1233,13 @@
                         fadeIndex: item.fadeIndex,
                         loop: item.loop || false
                     };
+                } else if (item.type === 'stopgroup') {
+                    return {
+                        type: 'stopgroup',
+                        page: item.page,
+                        pad: item.pad,
+                        targets: item.targets
+                    };
                 } else {
                     const bytes = new Uint8Array(item.data);
                     let binary = '';
@@ -1026,7 +1270,8 @@
             
             setTimeout(() => URL.revokeObjectURL(url), 100);
             
-            showAlert(`BACKUP SALVO (${allData.filter(d => d.type !== 'settings').length} áudio(s))`);
+            const audioCount = allData.filter(d => d.type !== 'settings' && d.type !== 'stopgroup').length;
+            showAlert(`BACKUP SALVO (${audioCount} áudio(s) + configurações)`);
         };
         
         request.onerror = () => {
@@ -1064,6 +1309,14 @@
                             fadeIndex: item.fadeIndex,
                             loop: item.loop || false
                         });
+                    } else if (item.type === 'stopgroup') {
+                        store.put({
+                            uid: `stopgroup-${item.page}-${item.pad}`,
+                            type: 'stopgroup',
+                            page: item.page,
+                            pad: item.pad,
+                            targets: item.targets
+                        });
                     } else {
                         const bin = Uint8Array.from(atob(item.data), c => c.charCodeAt(0)).buffer;
                         store.put({ 
@@ -1079,6 +1332,7 @@
                 tx.oncomplete = () => { 
                     showAlert("PROJETO RESTAURADO!"); 
                     changePage('A'); 
+                    loadStopGroups(); // ETAPA 3: Carregar grupos
                 };
                 
                 e.target.value = '';
@@ -1102,9 +1356,126 @@
         document.getElementById(`menu-${id}`).classList.toggle('show');
     }
     
-    function toggleStopGroup(id) {
-        showAlert("GRUPO STOP (Em desenvolvimento na ETAPA 4)");
+    // ETAPA 3: Sistema Stop Group
+    let currentEditingPad = null;
+    
+    function openStopGroupModal(padId) {
+        currentEditingPad = padId;
+        const key = `${currentPage}-${padId}`;
+        
+        // Atualizar título e descrição
+        document.getElementById('modalTitle').textContent = `STOP GROUP - PAD ${padId}`;
+        document.getElementById('modalDesc').textContent = 
+            `Selecione os pads que serão PARADOS quando o Pad ${padId} tocar.`;
+        
+        // Criar checkboxes para todos os pads (1-9)
+        const grid = document.getElementById('stopGroupGrid');
+        grid.innerHTML = '';
+        
+        for (let i = 1; i <= 9; i++) {
+            if (i === padId) continue; // Não incluir o próprio pad
+            
+            const checkId = `stop-check-${i}`;
+            const targetKey = `${currentPage}-${i}`;
+            const isChecked = stopGroups[key]?.includes(targetKey) || false;
+            
+            const checkDiv = document.createElement('div');
+            checkDiv.className = 'stop-group-check';
+            checkDiv.innerHTML = `
+                <input type="checkbox" id="${checkId}" ${isChecked ? 'checked' : ''}>
+                <label for="${checkId}">Pad ${i}</label>
+            `;
+            grid.appendChild(checkDiv);
+        }
+        
+        // Mostrar modal
+        document.getElementById('stopGroupModal').classList.add('active');
         document.querySelectorAll('.ctx-menu').forEach(m => m.classList.remove('show'));
+    }
+    
+    function closeStopGroupModal() {
+        document.getElementById('stopGroupModal').classList.remove('active');
+        currentEditingPad = null;
+    }
+    
+    async function saveStopGroup() {
+        if (!currentEditingPad || !db) return;
+        
+        const key = `${currentPage}-${currentEditingPad}`;
+        const targets = [];
+        
+        // Coletar pads selecionados
+        for (let i = 1; i <= 9; i++) {
+            if (i === currentEditingPad) continue;
+            const check = document.getElementById(`stop-check-${i}`);
+            if (check && check.checked) {
+                targets.push(`${currentPage}-${i}`);
+            }
+        }
+        
+        // Salvar no IndexedDB
+        const tx = db.transaction("pads", "readwrite");
+        const store = tx.objectStore("pads");
+        
+        if (targets.length > 0) {
+            await store.put({
+                uid: `stopgroup-${key}`,
+                type: 'stopgroup',
+                page: currentPage,
+                pad: currentEditingPad,
+                targets: targets
+            });
+            stopGroups[key] = targets;
+        } else {
+            // Se não houver targets, remover do banco
+            await store.delete(`stopgroup-${key}`);
+            delete stopGroups[key];
+        }
+        
+        tx.oncomplete = () => {
+            updateStopGroupMenuLabels();
+            showAlert(`STOP GROUP PAD ${currentEditingPad}: ${targets.length || 'NENHUM'} alvo(s)`);
+            closeStopGroupModal();
+        };
+    }
+    
+    async function loadStopGroups() {
+        if (!db) return;
+        
+        const tx = db.transaction("pads", "readonly");
+        const request = tx.objectStore("pads").getAll();
+        
+        request.onsuccess = (e) => {
+            const allData = e.target.result;
+            allData.filter(item => item.type === 'stopgroup').forEach(item => {
+                const key = `${item.page}-${item.pad}`;
+                stopGroups[key] = item.targets || [];
+            });
+            
+            // Atualizar menus
+            updateStopGroupMenuLabels();
+        };
+    }
+    
+    function updateStopGroupMenuLabels() {
+        for (let i = 1; i <= 9; i++) {
+            const key = `${currentPage}-${i}`;
+            const menuItem = document.getElementById(`stopgroup-opt-${i}`);
+            if (menuItem) {
+                if (stopGroups[key] && stopGroups[key].length > 0) {
+                    // Formatar lista de targets
+                    const targetsList = stopGroups[key]
+                        .map(t => {
+                            const parts = t.split('-');
+                            return parts[1]; // Apenas o número do pad
+                        })
+                        .join(',');
+                    menuItem.textContent = `⏹️ GRUPO STOP: ${targetsList}`;
+                } else {
+                    menuItem.textContent = '⏹️ GRUPO STOP: NENHUM';
+                }
+            }
+        }
     }
     
     window.onclick = () => {
