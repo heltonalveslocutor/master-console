@@ -393,719 +393,918 @@
 </div>
 
 <script>
-    // Sistema de Áudio
-    let audioCtx, masterGain, analyser;
-    let sounds = {}; let activeSources = {}; let currentPage = 'A'; let db; let loops = {};
-    let padVolumes = {}; let padFades = {}; let padGainNodes = {};
+    // ============================================
+    // MASTER CONSOLE - CÓDIGO REORGANIZADO E CORRIGIDO
+    // Versão 4.1 - Com melhorias internas
+    // ============================================
     
-    // ETAPA 2: Rastrear áudios ativos entre bancos
-    let activeAudios = new Map(); // Guarda info de áudios tocando
-    let stopGroups = {}; // ETAPA 3: Grupos de stop
-    
-    function initAudio() {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            masterGain = audioCtx.createGain();
-            analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 1024;
-            masterGain.connect(analyser); 
-            analyser.connect(audioCtx.destination);
-            masterGain.gain.value = document.getElementById('gainSlider').value;
-            updateVU();
-        }
-        return audioCtx;
-    }
-    
-    // Ativar áudio no primeiro clique
-    document.body.addEventListener('click', function initOnClick() {
-        if (!audioCtx || audioCtx.state === 'suspended') {
-            initAudio();
-            if(audioCtx.state === 'suspended') audioCtx.resume();
-        }
-        document.body.removeEventListener('click', initOnClick);
-    });
-
-    // Criar os 9 pads com layout ajustado
-    const grid = document.getElementById('padGrid');
-    for (let i = 1; i <= 9; i++) {
-        const div = document.createElement('div');
-        div.className = 'pad'; div.id = `pad-${i}`;
-        div.innerHTML = `
-            <div class="p-idx">${i}</div>
-            
-            <!-- CONTROLES COM MAIS ESPAÇO E HARMONIA -->
-            <div class="pad-controls">
-                <!-- 1. VOLUME SLIDER HORIZONTAL (com mais espaçamento) -->
-                <div class="volume-horizontal" id="vol-container-${i}">
-                    <div class="vol-horizontal-track" id="vol-track-${i}">
-                        <div class="vol-horizontal-fill" id="vol-fill-${i}"></div>
-                        <div class="vol-horizontal-slider" id="vol-slider-${i}"></div>
-                    </div>
-                </div>
-                
-                <!-- 2. FADE CONTROL - quadrado arredondado -->
-                <div class="btn-square fade-control" id="fade-${i}" onclick="cycleFadeSetting(${i})" 
-                     title="Clique para alternar Fade">–</div>
-                
-                <!-- 3. LOOP BUTTON - quadrado arredondado com ícone maior -->
-                <button class="btn-square btn-loop" id="loop-${i}" onclick="toggleLoop(event, ${i})" title="Loop ON/OFF">
-                    <svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
-                </button>
-                
-                <!-- 4. MENU TRIGGER -->
-                <div class="p-menu-trigger" onclick="toggleCtx(event, ${i})">⋮</div>
-                
-                <div class="ctx-menu" id="menu-${i}">
-                    <div class="ctx-opt" onclick="clickInput(${i})">📁 CARREGAR ÁUDIO</div>
-                    <div class="ctx-opt" onclick="openStopGroupModal(${i})" id="stopgroup-opt-${i}">⏹️ GRUPO STOP: NENHUM</div>
-                    <div class="ctx-opt" style="color:#ff4d4d" onclick="clearSlot(${i})">🗑️ LIMPAR PAD</div>
-                </div>
-            </div>
-            
-            <div class="prog-bar" id="prog-${i}"></div>
-            <div class="p-title" id="name-${i}">---</div>
-            
-            <div class="p-footer">
-                <span id="cur-${i}">00:00</span>
-                <span id="rem-${i}" style="color:#ff4d4d">00:00</span>
-            </div>
-            <input type="file" id="in-${i}" style="display:none" accept="audio/*" onchange="handleFile(event, ${i})">
-        `;
-        
-        // Configurar interação do volume horizontal
-        const setupVolumeSlider = (padId) => {
-            const track = document.getElementById(`vol-track-${padId}`);
-            const slider = document.getElementById(`vol-slider-${padId}`);
-            const fill = document.getElementById(`vol-fill-${padId}`);
-            
-            let isDragging = false;
-            
-            const updateVolumeFromPosition = (clientX) => {
-                const rect = track.getBoundingClientRect();
-                let x = clientX - rect.left;
-                x = Math.max(0, Math.min(x, rect.width));
-                
-                const volume = x / rect.width;
-                updatePadVolume(padId, volume);
-                
-                // Atualizar posição visual
-                const percent = volume * 100;
-                slider.style.left = `${percent}%`;
-                fill.style.width = `${percent}%`;
-            };
-            
-            // Evento de arrastar
-            slider.addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-                isDragging = true;
-                document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
-            });
-            
-            // Clicar na track também altera volume
-            track.addEventListener('click', (e) => {
-                e.stopPropagation();
-                updateVolumeFromPosition(e.clientX);
-            });
-            
-            const onMouseMove = (e) => {
-                if (!isDragging) return;
-                updateVolumeFromPosition(e.clientX);
-            };
-            
-            const onMouseUp = () => {
-                isDragging = false;
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-            };
-            
-            // Toque para mobile
-            slider.addEventListener('touchstart', (e) => {
-                e.stopPropagation();
-                isDragging = true;
-                document.addEventListener('touchmove', onTouchMove);
-                document.addEventListener('touchend', onTouchEnd);
-            });
-            
-            track.addEventListener('touchstart', (e) => {
-                e.stopPropagation();
-                if (e.touches[0]) {
-                    updateVolumeFromPosition(e.touches[0].clientX);
+    // SISTEMA PRINCIPAL
+    const MasterConsole = {
+        // Audio Context
+        audio: {
+            ctx: null,
+            gain: null,
+            analyser: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    this.gain = this.ctx.createGain();
+                    this.analyser = this.ctx.createAnalyser();
+                    this.analyser.fftSize = 1024;
+                    this.gain.connect(this.analyser);
+                    this.analyser.connect(this.ctx.destination);
+                    this.gain.gain.value = 1.0;
                 }
-            });
-            
-            const onTouchMove = (e) => {
-                if (!isDragging || !e.touches[0]) return;
-                updateVolumeFromPosition(e.touches[0].clientX);
-            };
-            
-            const onTouchEnd = () => {
-                isDragging = false;
-                document.removeEventListener('touchmove', onTouchMove);
-                document.removeEventListener('touchend', onTouchEnd);
-            };
-        };
-        
-        // Configurar volume após criar o elemento
-        setTimeout(() => setupVolumeSlider(i), 10);
-        
-        div.onclick = (e) => { 
-            // Não disparar play se clicar nos controles
-            if(!e.target.closest('.pad-controls') && 
-               !e.target.closest('.ctx-menu')) {
-                initAudio();
-                playSound(i); 
+                return this.ctx;
+            },
+            resume() {
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    return this.ctx.resume();
+                }
+                return Promise.resolve();
             }
-        };
-        grid.appendChild(div);
-    }
-
-    // Configurar banco de dados
-    const dbReq = indexedDB.open("MasterConsoleDB_v4", 3); // Versão atualizada
-    dbReq.onupgradeneeded = function(e) {
-        console.log("Criando/atualizando banco de dados v4...");
-        db = e.target.result;
-        if (!db.objectStoreNames.contains('pads')) {
-            const store = db.createObjectStore('pads', { keyPath: 'uid' });
-            store.createIndex('page_idx', 'page', { unique: false });
-            store.createIndex('type_idx', 'type', { unique: false });
-        }
-    };
-    dbReq.onsuccess = (e) => { 
-        db = e.target.result; 
-        console.log("Banco de dados v4 pronto.");
-        changePage('A'); 
-        loadStopGroups(); // ETAPA 3: Carregar grupos de stop
-    };
-    dbReq.onerror = (e) => { 
-        console.error("Erro ao abrir banco de dados:", e.target.error); 
-        showAlert("ERRO NO BANCO DE DADOS"); 
-    };
-
-    function showAlert(t) {
-        const a = document.getElementById('alert'); 
-        a.innerText = t; 
-        a.style.display = 'block';
-        setTimeout(() => a.style.display = 'none', 1200);
-    }
-
-    function toggleLoop(e, id) {
-        e.stopPropagation();
-        const key = currentPage + id;
-        loops[key] = !loops[key];
-        const loopBtn = document.getElementById(`loop-${id}`);
-        loopBtn.classList.toggle('active', loops[key]);
-        showAlert(`PAD ${id}: LOOP ${loops[key] ? 'ON' : 'OFF'}`);
+        },
         
-        // Salvar estado do loop
-        savePadSettings(id);
-    }
-
-    // Volume individual e fade por pad
-    function updatePadVolume(padId, volume) {
-        const key = `${currentPage}-${padId}`;
-        padVolumes[key] = parseFloat(volume);
+        // Estado atual
+        current: {
+            page: 'A',
+            sounds: {},        // Cache de áudios do banco atual
+            activeSources: {}, // Fontes de áudio ativas
+            padGainNodes: {}   // Nodes de ganho por pad
+        },
         
-        // Atualizar visual do volume horizontal
-        const slider = document.getElementById(`vol-slider-${padId}`);
-        const fill = document.getElementById(`vol-fill-${padId}`);
-        if (slider && fill) {
-            const percent = volume * 100;
-            slider.style.left = `${percent}%`;
-            fill.style.width = `${percent}%`;
-        }
+        // Configurações persistentes
+        settings: {
+            volumes: {},      // padVolumes
+            fades: {},        // padFades
+            loops: {},        // loops
+            stopGroups: {}    // stopGroups
+        },
         
-        // Atualizar volume se estiver tocando
-        if (padGainNodes[key] && padGainNodes[key].gain) {
-            padGainNodes[key].gain.value = volume;
-        }
-        
-        // Salvar no IndexedDB
-        savePadSettings(padId);
-    }
-
-    function cycleFadeSetting(padId) {
-        const key = `${currentPage}-${padId}`;
-        const fadeOpts = [
-            { name: "OFF", symbol: "–", title: "Sem Fade" },
-            { name: "IN", symbol: "↗", title: "Fade In 1s" },
-            { name: "OUT", symbol: "↘", title: "Fade Out 1s" },
-            { name: "IO", symbol: "↗↘", title: "Fade In/Out 0.5s" },
-            { name: "IN2", symbol: "↗2", title: "Fade In 2s" },
-            { name: "LONG", symbol: "⏱️", title: "Fade In 1s / Out 3s" }
-        ];
-        
-        const fadeValues = [
-            { in: 0, out: 0 },
-            { in: 1, out: 0 },
-            { in: 0, out: 1 },
-            { in: 0.5, out: 0.5 },
-            { in: 2, out: 0 },
-            { in: 1, out: 3 }
-        ];
-        
-        if (!padFades[key]) padFades[key] = { index: 0 };
-        padFades[key].index = (padFades[key].index + 1) % fadeOpts.length;
-        
-        const opt = fadeOpts[padFades[key].index];
-        const vals = fadeValues[padFades[key].index];
-        
-        padFades[key].in = vals.in;
-        padFades[key].out = vals.out;
-        
-        const fadeEl = document.getElementById(`fade-${padId}`);
-        fadeEl.textContent = opt.symbol;
-        fadeEl.title = opt.title;
-        
-        // ATUALIZADO: Fade permanece "aceso" quando não for OFF
-        if (padFades[key].index === 0) {
-            fadeEl.classList.remove('has-fade');
-            fadeEl.style.color = ''; // Cor padrão
-        } else {
-            fadeEl.classList.add('has-fade');
-            fadeEl.style.color = 'var(--primary)'; // Cor do banco
-        }
-        
-        // Feedback visual temporário
-        fadeEl.style.transform = 'scale(1.1)';
-        setTimeout(() => {
-            fadeEl.style.transform = '';
-        }, 150);
-        
-        savePadSettings(padId);
-    }
-
-    function applyFade(padId, sourceNode, duration) {
-        const key = `${currentPage}-${padId}`;
-        const volume = padVolumes[key] || 1;
-        
-        if (!padFades[key] || (padFades[key].in === 0 && padFades[key].out === 0)) {
-            // Sem fade, apenas volume
-            const gainNode = audioCtx.createGain();
-            gainNode.gain.value = volume;
-            padGainNodes[key] = gainNode;
-            sourceNode.connect(gainNode);
-            return gainNode;
-        }
-        
-        const now = audioCtx.currentTime;
-        const gainNode = audioCtx.createGain();
-        
-        // Fade in
-        if (padFades[key].in > 0) {
-            gainNode.gain.setValueAtTime(0.001, now);
-            gainNode.gain.exponentialRampToValueAtTime(
-                volume, 
-                now + Math.min(padFades[key].in, duration * 0.9)
-            );
-        } else {
-            gainNode.gain.value = volume;
-        }
-        
-        // Fade out (se aplicável e se não for loop)
-        const loopKey = currentPage + padId;
-        if (padFades[key].out > 0 && !loops[loopKey]) {
-            const fadeOutStart = now + duration - Math.min(padFades[key].out, duration * 0.9);
-            gainNode.gain.setValueAtTime(volume, fadeOutStart);
-            gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
-        }
-        
-        padGainNodes[key] = gainNode;
-        sourceNode.connect(gainNode);
-        return gainNode;
-    }
-
-    async function savePadSettings(padId) {
-        if (!db) return;
-        
-        const key = `${currentPage}-${padId}`;
-        const settings = {
-            uid: `settings-${key}`,
-            type: 'settings',
-            page: currentPage,
-            pad: padId,
-            volume: padVolumes[key] || 1,
-            fadeIn: padFades[key]?.in || 0,
-            fadeOut: padFades[key]?.out || 0,
-            fadeIndex: padFades[key]?.index || 0,
-            loop: loops[key] || false
-        };
-        
-        const tx = db.transaction("pads", "readwrite");
-        tx.objectStore("pads").put(settings);
-    }
-
-    async function loadPadSettings() {
-        if (!db) return;
-        
-        const tx = db.transaction("pads", "readonly");
-        const request = tx.objectStore("pads").getAll();
-        
-        request.onsuccess = (e) => {
-            const allData = e.target.result;
-            allData.filter(item => item.type === 'settings').forEach(item => {
-                const key = `${item.page}-${item.pad}`;
-                padVolumes[key] = item.volume || 1;
+        // Rastreamento global
+        tracking: {
+            activeAudios: new Map(), // Áudios ativos entre bancos
+            
+            // Adicionar áudio ativo
+            addActive(padId, page, source, duration) {
+                const key = `${page}-${padId}`;
+                this.activeAudios.set(key, {
+                    pad: padId,
+                    page: page,
+                    playing: true,
+                    startTime: MasterConsole.audio.ctx.currentTime,
+                    duration: duration,
+                    source: source
+                });
+                this.updateIndicator();
+            },
+            
+            // Remover áudio ativo
+            removeActive(padId, page) {
+                const key = `${page}-${padId}`;
+                this.activeAudios.delete(key);
+                this.updateIndicator();
+            },
+            
+            // Atualizar indicador visual
+            updateIndicator() {
+                const indicator = document.getElementById('activeAudioIndicator');
                 
-                if (item.fadeIn > 0 || item.fadeOut > 0 || item.fadeIndex > 0) {
-                    padFades[key] = {
-                        in: item.fadeIn,
-                        out: item.fadeOut,
-                        index: item.fadeIndex || 0
-                    };
+                if (this.activeAudios.size === 0) {
+                    indicator.innerHTML = '';
+                    return;
                 }
                 
-                // Restaurar estado do loop
-                if (item.loop !== undefined) {
-                    loops[key] = item.loop;
-                }
-                
-                // Atualizar controles visuais se estiver na página atual
-                if (currentPage === item.page) {
-                    // Volume horizontal
-                    const slider = document.getElementById(`vol-slider-${item.pad}`);
-                    const fill = document.getElementById(`vol-fill-${item.pad}`);
-                    if (slider && fill) {
-                        const percent = (item.volume || 1) * 100;
-                        slider.style.left = `${percent}%`;
-                        fill.style.width = `${percent}%`;
+                let activeList = [];
+                this.activeAudios.forEach((info, key) => {
+                    if (info.playing) {
+                        activeList.push(`Pad ${info.pad} (Banco ${info.page})`);
                     }
+                });
+                
+                if (activeList.length > 0) {
+                    indicator.innerHTML = `<span class="playing-icon">▶️</span> ${activeList.join(', ')}`;
+                } else {
+                    indicator.innerHTML = '';
+                }
+            },
+            
+            // Parar áudio de qualquer banco
+            stopFromAnywhere(padId, page) {
+                const key = `${page}-${padId}`;
+                const info = this.activeAudios.get(key);
+                
+                if (info) {
+                    // Se estiver na página atual
+                    if (page === MasterConsole.current.page && MasterConsole.current.activeSources[padId]) {
+                        MasterConsole.stopSound(padId, true);
+                    } else {
+                        // Parar fonte se existir
+                        if (info.source) {
+                            try { info.source.stop(); } catch(e) {}
+                        }
+                        this.activeAudios.delete(key);
+                        this.updateIndicator();
+                    }
+                }
+            }
+        },
+        
+        // Banco de dados
+        db: null,
+        initDB() {
+            return new Promise((resolve, reject) => {
+                const dbReq = indexedDB.open("MasterConsoleDB_v4", 3);
+                
+                dbReq.onupgradeneeded = (e) => {
+                    console.log("Atualizando banco de dados...");
+                    this.db = e.target.result;
+                    if (!this.db.objectStoreNames.contains('pads')) {
+                        const store = this.db.createObjectStore('pads', { keyPath: 'uid' });
+                        store.createIndex('page_idx', 'page', { unique: false });
+                        store.createIndex('type_idx', 'type', { unique: false });
+                    }
+                };
+                
+                dbReq.onsuccess = (e) => { 
+                    this.db = e.target.result; 
+                    console.log("Banco de dados pronto.");
+                    resolve(); 
+                };
+                
+                dbReq.onerror = (e) => { 
+                    console.error("Erro no banco:", e.target.error); 
+                    reject(e.target.error);
+                };
+            });
+        },
+        
+        // ===== FUNÇÕES PRINCIPAIS =====
+        
+        // Inicializar sistema de áudio
+        initAudio() {
+            return this.audio.init();
+        },
+        
+        // Mudar página/banco
+        async changePage(page) {
+            this.current.page = page;
+            
+            // Atualizar UI
+            document.body.className = `pg-${page}`;
+            document.getElementById('pg-status').innerText = `MODO: BANCO ${page}`;
+            document.querySelectorAll('.tab').forEach(t => {
+                t.classList.toggle('active', t.dataset.pg === page);
+            });
+            
+            // Atualizar indicador
+            this.tracking.updateIndicator();
+            
+            // Limpar cache do banco anterior
+            this.current.sounds = {};
+            this.current.activeSources = {};
+            this.current.padGainNodes = {};
+            
+            // Resetar visualização dos pads não ativos
+            for(let i = 1; i <= 9; i++) {
+                const isPlayingElsewhere = Array.from(this.tracking.activeAudios.keys()).some(key => {
+                    const info = this.tracking.activeAudios.get(key);
+                    return info.pad === i && info.playing;
+                });
+                
+                if (!isPlayingElsewhere) {
+                    document.getElementById(`name-${i}`).innerText = "---";
+                    document.getElementById(`rem-${i}`).innerText = "00:00";
+                    document.getElementById(`prog-${i}`).style.width = "0%";
+                    document.getElementById(`cur-${i}`).innerText = "00:00";
+                }
+            }
+            
+            // Carregar dados do banco
+            await this.loadBankData(page);
+            await this.loadPadSettings();
+            this.updateStopGroupMenuLabels();
+            
+            showAlert(`BANCO ${page} PRONTO`);
+        },
+        
+        // Carregar dados do banco
+        async loadBankData(page) {
+            if (!this.db) return;
+            
+            return new Promise((resolve) => {
+                const tx = this.db.transaction("pads", "readonly");
+                const store = tx.objectStore("pads");
+                const index = store.index("page_idx");
+                
+                const request = index.getAll(page);
+                
+                request.onsuccess = async (e) => {
+                    const pageData = e.target.result.filter(item => item.type !== 'settings' && item.type !== 'stopgroup');
                     
-                    // Fade
-                    const fadeEl = document.getElementById(`fade-${item.pad}`);
-                    if (fadeEl) {
-                        const symbols = ["–", "↗", "↘", "↗↘", "↗2", "⏱️"];
-                        const titles = [
-                            "Sem Fade",
-                            "Fade In 1s",
-                            "Fade Out 1s",
-                            "Fade In/Out 0.5s",
-                            "Fade In 2s",
-                            "Fade In 1s / Out 3s"
-                        ];
-                        const idx = item.fadeIndex || 0;
-                        fadeEl.textContent = symbols[idx] || "–";
-                        fadeEl.title = titles[idx] || "Sem Fade";
-                        
-                        // Aplicar estado visual permanente do fade
-                        if (idx === 0) {
-                            fadeEl.classList.remove('has-fade');
-                            fadeEl.style.color = '';
-                        } else {
-                            fadeEl.classList.add('has-fade');
-                            fadeEl.style.color = 'var(--primary)';
+                    for(let item of pageData) {
+                        try {
+                            if (!this.audio.ctx) this.initAudio();
+                            const buffer = await this.audio.ctx.decodeAudioData(item.data.slice(0));
+                            this.current.sounds[item.id] = {
+                                buffer,
+                                name: item.name,
+                                duration: buffer.duration
+                            };
+                            document.getElementById(`name-${item.id}`).innerText = item.name;
+                            document.getElementById(`rem-${item.id}`).innerText = this.formatTime(buffer.duration);
+                        } catch(err) {
+                            console.error("Erro ao decodificar áudio:", err);
                         }
                     }
+                    resolve();
+                };
+            });
+        },
+        
+        // Tocar som
+        playSound(padId) {
+            // ETAPA 3: Aplicar stop groups
+            this.applyStopGroups(padId);
+            
+            const key = this.current.page + padId;
+            if (!this.current.sounds[padId]) {
+                showAlert(`PAD ${padId} VAZIO`);
+                return;
+            }
+            
+            if (!this.audio.ctx) this.initAudio();
+            if (this.audio.ctx.state === 'suspended') {
+                this.audio.resume().then(() => this.playSound(padId));
+                return;
+            }
+            
+            if (this.current.activeSources[padId]) {
+                this.stopSound(padId);
+                return;
+            }
+            
+            try {
+                const src = this.audio.ctx.createBufferSource();
+                src.buffer = this.current.sounds[padId].buffer;
+                src.loop = !!this.settings.loops[key];
+                
+                // Aplicar fade e volume
+                const gainNode = this.applyFade(padId, src, this.current.sounds[padId].duration);
+                gainNode.connect(this.audio.gain);
+                
+                const start = this.audio.ctx.currentTime;
+                src.start(0);
+                
+                this.current.activeSources[padId] = {
+                    source: src,
+                    gain: gainNode,
+                    page: this.current.page
+                };
+                
+                // Registrar como ativo
+                this.tracking.addActive(padId, this.current.page, src, this.current.sounds[padId].duration);
+                
+                document.getElementById(`pad-${padId}`).classList.add('active');
+                
+                // Animar progresso
+                this.animateProgress(padId, start);
+                
+                src.onended = () => {
+                    if (!this.settings.loops[key]) {
+                        this.stopSound(padId);
+                    }
+                };
+                
+            } catch(err) {
+                console.error("Erro ao tocar:", err);
+                showAlert("ERRO AO TOCAR");
+            }
+        },
+        
+        // ETAPA 3: Aplicar stop groups
+        applyStopGroups(padId) {
+            const key = `${this.current.page}-${padId}`;
+            if (this.settings.stopGroups[key]) {
+                this.settings.stopGroups[key].forEach(target => {
+                    const [targetPage, targetId] = target.split('-');
+                    this.tracking.stopFromAnywhere(targetId, targetPage);
+                });
+            }
+        },
+        
+        // Parar som
+        stopSound(padId, immediate = false) {
+            const audioKey = `${this.current.page}-${padId}`;
+            const source = this.current.activeSources[padId];
+            
+            if (source) {
+                try {
+                    const settingsKey = `${source.page}-${padId}`;
+                    const fadeOut = this.settings.fades[settingsKey]?.out || 0;
                     
-                    // Loop
-                    const loopBtn = document.getElementById(`loop-${item.pad}`);
-                    if (loopBtn) {
-                        loopBtn.classList.toggle('active', !!loops[key]);
+                    if (!immediate && fadeOut > 0) {
+                        // Fade out suave
+                        const now = this.audio.ctx.currentTime;
+                        source.gain.gain.cancelScheduledValues(now);
+                        source.gain.gain.setValueAtTime(source.gain.gain.value, now);
+                        source.gain.gain.exponentialRampToValueAtTime(0.001, now + fadeOut);
+                        
+                        setTimeout(() => {
+                            if (source.source) {
+                                try { source.source.stop(); } catch(e) {}
+                            }
+                            this.cleanupPad(padId, audioKey);
+                        }, fadeOut * 1000);
+                    } else {
+                        // Parada imediata
+                        source.source.stop();
+                        this.cleanupPad(padId, audioKey);
                     }
+                } catch(e) {
+                    this.cleanupPad(padId, audioKey);
                 }
-            });
-        };
-    }
-
-    // ETAPA 2: Atualizar indicador de áudio ativo
-    function updateActiveAudioIndicator() {
-        const indicator = document.getElementById('activeAudioIndicator');
-        
-        if (activeAudios.size === 0) {
-            indicator.innerHTML = '';
-            return;
-        }
-        
-        let html = '<span class="playing-icon">▶️</span> ';
-        let activeList = [];
-        
-        activeAudios.forEach((info, key) => {
-            if (info.playing) {
-                activeList.push(`Pad ${info.pad} (Banco ${info.page})`);
+            } else {
+                this.cleanupPad(padId, audioKey);
             }
-        });
+        },
         
-        if (activeList.length > 0) {
-            html += activeList.join(', ');
-        } else {
-            html = '';
-        }
-        
-        indicator.innerHTML = html;
-    }
-
-    async function changePage(p) {
-        currentPage = p;
-        document.body.className = `pg-${p}`;
-        document.getElementById('pg-status').innerText = `MODO: BANCO ${p}`;
-        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.pg === p));
-        
-        // ETAPA 2: Atualizar indicador de áudios ativos
-        updateActiveAudioIndicator();
-        
-        // Resetar visualização apenas dos pads não ativos
-        for(let i = 1; i <= 9; i++) {
-            // Verificar se o pad está tocando em algum banco
-            const isPlayingElsewhere = Array.from(activeAudios.keys()).some(key => {
-                const info = activeAudios.get(key);
-                return info.pad === i && info.playing;
-            });
+        // Limpar pad após parar
+        cleanupPad(padId, audioKey) {
+            this.current.activeSources[padId] = null;
+            this.tracking.removeActive(padId, this.current.page);
             
-            if (!isPlayingElsewhere) {
-                document.getElementById(`name-${i}`).innerText = "---";
-                document.getElementById(`rem-${i}`).innerText = "00:00";
-                document.getElementById(`prog-${i}`).style.width = "0%";
-                document.getElementById(`cur-${i}`).innerText = "00:00";
+            document.getElementById(`pad-${padId}`).classList.remove('active');
+            document.getElementById(`prog-${padId}`).style.width = "0%";
+            document.getElementById(`cur-${padId}`).innerText = "00:00";
+            
+            if (this.current.sounds[padId]) {
+                document.getElementById(`rem-${padId}`).innerText = 
+                    this.formatTime(this.current.sounds[padId].duration);
             }
-        }
-
-        sounds = {}; // Limpar cache de sons da página atual
+        },
         
-        if (db) {
-            const tx = db.transaction("pads", "readonly");
-            const store = tx.objectStore("pads");
-            const index = store.index("page_idx");
+        // Parar todos os sons
+        stopAll() {
+            this.tracking.activeAudios.clear();
+            this.tracking.updateIndicator();
             
-            const request = index.getAll(currentPage);
-            
-            request.onsuccess = async (e) => {
-                const pageData = e.target.result.filter(item => item.type !== 'settings');
-                console.log(`Carregando Banco ${p}:`, pageData.length, "áudio(s)");
-                
-                for(let item of pageData) {
-                    try {
-                        if (!audioCtx) initAudio();
-                        const buffer = await audioCtx.decodeAudioData(item.data.slice(0));
-                        sounds[item.id] = { 
-                            buffer, 
-                            name: item.name, 
-                            duration: buffer.duration
-                        };
-                        document.getElementById(`name-${item.id}`).innerText = item.name;
-                        document.getElementById(`rem-${item.id}`).innerText = formatTime(buffer.duration);
-                    } catch(err) {
-                        console.error("Erro ao decodificar áudio:", err);
-                    }
-                }
-                showAlert(`BANCO ${p} PRONTO`);
-                
-                // Carregar configurações dos pads (inclui loop)
-                loadPadSettings();
-                updateStopGroupMenuLabels(); // ETAPA 3: Atualizar labels dos menus
-            };
-        }
-    }
-
-    function playSound(id) {
-        // ETAPA 3: Verificar stop groups
-        const stopGroupKey = `${currentPage}-${id}`;
-        if (stopGroups[stopGroupKey]) {
-            stopGroups[stopGroupKey].forEach(target => {
-                const [targetPage, targetId] = target.split('-');
-                // Parar o áudio se estiver tocando
-                if (activeAudios.has(target) && activeAudios.get(target).playing) {
-                    stopSoundFromAnywhere(targetId, targetPage);
+            Object.keys(this.current.activeSources).forEach(id => {
+                if (this.current.activeSources[id]) {
+                    this.stopSound(id, true);
                 }
             });
-        }
+        },
         
-        const key = currentPage + id;
-        if(!sounds[id]) {
-            showAlert(`PAD ${id} VAZIO`);
-            return;
-        }
+        // Aplicar fade
+        applyFade(padId, sourceNode, duration) {
+            const key = `${this.current.page}-${padId}`;
+            const volume = this.settings.volumes[key] || 1;
+            const fade = this.settings.fades[key] || { in: 0, out: 0 };
+            
+            const gainNode = this.audio.ctx.createGain();
+            const now = this.audio.ctx.currentTime;
+            
+            // Fade in
+            if (fade.in > 0) {
+                gainNode.gain.setValueAtTime(0.001, now);
+                gainNode.gain.exponentialRampToValueAtTime(
+                    volume, 
+                    now + Math.min(fade.in, duration * 0.9)
+                );
+            } else {
+                gainNode.gain.value = volume;
+            }
+            
+            // Fade out (se não for loop)
+            const loopKey = this.current.page + padId;
+            if (fade.out > 0 && !this.settings.loops[loopKey]) {
+                const fadeOutStart = now + duration - Math.min(fade.out, duration * 0.9);
+                gainNode.gain.setValueAtTime(volume, fadeOutStart);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+            }
+            
+            this.current.padGainNodes[key] = gainNode;
+            sourceNode.connect(gainNode);
+            return gainNode;
+        },
         
-        if(!audioCtx) initAudio();
-        if(audioCtx.state === 'suspended') {
-            audioCtx.resume().then(() => playSound(id));
-            return;
-        }
-        
-        if(activeSources[id]) { 
-            stopSound(id); 
-            return; 
-        }
-        
-        try {
-            const src = audioCtx.createBufferSource();
-            src.buffer = sounds[id].buffer;
-            src.loop = !!loops[key];
-            
-            // Aplicar volume e fade
-            const gainNode = applyFade(id, src, sounds[id].duration);
-            gainNode.connect(masterGain);
-            
-            const start = audioCtx.currentTime;
-            src.start(0);
-            activeSources[id] = { source: src, gain: gainNode, page: currentPage };
-            
-            // ETAPA 2: Registrar áudio ativo
-            const audioKey = `${currentPage}-${id}`;
-            activeAudios.set(audioKey, {
-                pad: id,
-                page: currentPage,
-                playing: true,
-                startTime: start,
-                duration: sounds[id].duration
-            });
-            
-            document.getElementById(`pad-${id}`).classList.add('active');
-            
+        // Animar barra de progresso
+        animateProgress(padId, startTime) {
             const animate = () => {
-                if(!activeSources[id]) return;
-                let elapsed = (audioCtx.currentTime - start) % sounds[id].duration;
-                document.getElementById(`prog-${id}`).style.width = (elapsed / sounds[id].duration * 100) + "%";
-                document.getElementById(`cur-${id}`).innerText = formatTime(elapsed);
-                document.getElementById(`rem-${id}`).innerText = "-" + formatTime(sounds[id].duration - elapsed);
+                const source = this.current.activeSources[padId];
+                if (!source || !this.current.sounds[padId]) return;
                 
-                // ETAPA 2: Atualizar indicador se o áudio ainda estiver ativo
-                if (activeAudios.has(audioKey)) {
-                    activeAudios.get(audioKey).elapsed = elapsed;
-                }
+                let elapsed = (this.audio.ctx.currentTime - startTime) % this.current.sounds[padId].duration;
+                document.getElementById(`prog-${padId}`).style.width = 
+                    (elapsed / this.current.sounds[padId].duration * 100) + "%";
+                document.getElementById(`cur-${padId}`).innerText = this.formatTime(elapsed);
+                document.getElementById(`rem-${padId}`).innerText = 
+                    "-" + this.formatTime(this.current.sounds[padId].duration - elapsed);
                 
                 requestAnimationFrame(animate);
             };
             animate();
+        },
+        
+        // ===== FUNÇÕES AUXILIARES =====
+        
+        formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        },
+        
+        updatePadVolume(padId, volume) {
+            const key = `${this.current.page}-${padId}`;
+            this.settings.volumes[key] = parseFloat(volume);
             
-            src.onended = () => { 
-                if(!loops[key]) {
-                    stopSound(id);
+            // Atualizar visual
+            const slider = document.getElementById(`vol-slider-${padId}`);
+            const fill = document.getElementById(`vol-fill-${padId}`);
+            if (slider && fill) {
+                const percent = volume * 100;
+                slider.style.left = `${percent}%`;
+                fill.style.width = `${percent}%`;
+            }
+            
+            // Atualizar áudio se estiver tocando
+            if (this.current.padGainNodes[key]) {
+                this.current.padGainNodes[key].gain.value = volume;
+            }
+            
+            this.savePadSettings(padId);
+        },
+        
+        cycleFadeSetting(padId) {
+            const key = `${this.current.page}-${padId}`;
+            const fadeOpts = [
+                { symbol: "–", title: "Sem Fade", in: 0, out: 0 },
+                { symbol: "↗", title: "Fade In 1s", in: 1, out: 0 },
+                { symbol: "↘", title: "Fade Out 1s", in: 0, out: 1 },
+                { symbol: "↗↘", title: "Fade In/Out 0.5s", in: 0.5, out: 0.5 },
+                { symbol: "↗2", title: "Fade In 2s", in: 2, out: 0 },
+                { symbol: "⏱️", title: "Fade In 1s / Out 3s", in: 1, out: 3 }
+            ];
+            
+            if (!this.settings.fades[key]) {
+                this.settings.fades[key] = { index: 0, ...fadeOpts[0] };
+            }
+            
+            this.settings.fades[key].index = (this.settings.fades[key].index + 1) % fadeOpts.length;
+            const opt = fadeOpts[this.settings.fades[key].index];
+            
+            this.settings.fades[key].in = opt.in;
+            this.settings.fades[key].out = opt.out;
+            
+            const fadeEl = document.getElementById(`fade-${padId}`);
+            fadeEl.textContent = opt.symbol;
+            fadeEl.title = opt.title;
+            
+            if (this.settings.fades[key].index === 0) {
+                fadeEl.classList.remove('has-fade');
+                fadeEl.style.color = '';
+            } else {
+                fadeEl.classList.add('has-fade');
+                fadeEl.style.color = 'var(--primary)';
+            }
+            
+            fadeEl.style.transform = 'scale(1.1)';
+            setTimeout(() => fadeEl.style.transform = '', 150);
+            
+            this.savePadSettings(padId);
+        },
+        
+        toggleLoop(padId) {
+            const key = this.current.page + padId;
+            this.settings.loops[key] = !this.settings.loops[key];
+            
+            const loopBtn = document.getElementById(`loop-${padId}`);
+            loopBtn.classList.toggle('active', this.settings.loops[key]);
+            
+            showAlert(`PAD ${padId}: LOOP ${this.settings.loops[key] ? 'ON' : 'OFF'}`);
+            this.savePadSettings(padId);
+        },
+        
+        // ===== PERSISTÊNCIA =====
+        
+        async savePadSettings(padId) {
+            if (!this.db) return;
+            
+            const key = `${this.current.page}-${padId}`;
+            const settings = {
+                uid: `settings-${key}`,
+                type: 'settings',
+                page: this.current.page,
+                pad: padId,
+                volume: this.settings.volumes[key] || 1,
+                fadeIn: this.settings.fades[key]?.in || 0,
+                fadeOut: this.settings.fades[key]?.out || 0,
+                fadeIndex: this.settings.fades[key]?.index || 0,
+                loop: this.settings.loops[key] || false
+            };
+            
+            const tx = this.db.transaction("pads", "readwrite");
+            tx.objectStore("pads").put(settings);
+        },
+        
+        async loadPadSettings() {
+            if (!this.db) return;
+            
+            return new Promise((resolve) => {
+                const tx = this.db.transaction("pads", "readonly");
+                const request = tx.objectStore("pads").getAll();
+                
+                request.onsuccess = (e) => {
+                    const allData = e.target.result;
+                    
+                    allData.filter(item => item.type === 'settings').forEach(item => {
+                        const key = `${item.page}-${item.pad}`;
+                        
+                        this.settings.volumes[key] = item.volume || 1;
+                        
+                        if (item.fadeIn > 0 || item.fadeOut > 0 || item.fadeIndex > 0) {
+                            this.settings.fades[key] = {
+                                in: item.fadeIn,
+                                out: item.fadeOut,
+                                index: item.fadeIndex || 0
+                            };
+                        }
+                        
+                        if (item.loop !== undefined) {
+                            this.settings.loops[key] = item.loop;
+                        }
+                        
+                        // Atualizar controles se for o banco atual
+                        if (this.current.page === item.page) {
+                            this.updatePadControls(item.pad);
+                        }
+                    });
+                    
+                    resolve();
+                };
+            });
+        },
+        
+        updatePadControls(padId) {
+            const key = `${this.current.page}-${padId}`;
+            
+            // Volume
+            const slider = document.getElementById(`vol-slider-${padId}`);
+            const fill = document.getElementById(`vol-fill-${padId}`);
+            if (slider && fill) {
+                const volume = this.settings.volumes[key] || 1;
+                const percent = volume * 100;
+                slider.style.left = `${percent}%`;
+                fill.style.width = `${percent}%`;
+            }
+            
+            // Fade
+            const fadeEl = document.getElementById(`fade-${padId}`);
+            if (fadeEl) {
+                const symbols = ["–", "↗", "↘", "↗↘", "↗2", "⏱️"];
+                const titles = [
+                    "Sem Fade", "Fade In 1s", "Fade Out 1s", 
+                    "Fade In/Out 0.5s", "Fade In 2s", "Fade In 1s / Out 3s"
+                ];
+                
+                const fade = this.settings.fades[key];
+                const idx = fade?.index || 0;
+                fadeEl.textContent = symbols[idx] || "–";
+                fadeEl.title = titles[idx] || "Sem Fade";
+                
+                if (idx === 0) {
+                    fadeEl.classList.remove('has-fade');
+                    fadeEl.style.color = '';
+                } else {
+                    fadeEl.classList.add('has-fade');
+                    fadeEl.style.color = 'var(--primary)';
+                }
+            }
+            
+            // Loop
+            const loopBtn = document.getElementById(`loop-${padId}`);
+            if (loopBtn) {
+                loopBtn.classList.toggle('active', !!this.settings.loops[key]);
+            }
+        },
+        
+        // ===== STOP GROUPS =====
+        
+        async loadStopGroups() {
+            if (!this.db) return;
+            
+            return new Promise((resolve) => {
+                const tx = this.db.transaction("pads", "readonly");
+                const request = tx.objectStore("pads").getAll();
+                
+                request.onsuccess = (e) => {
+                    const allData = e.target.result;
+                    allData.filter(item => item.type === 'stopgroup').forEach(item => {
+                        const key = `${item.page}-${item.pad}`;
+                        this.settings.stopGroups[key] = item.targets || [];
+                    });
+                    
+                    this.updateStopGroupMenuLabels();
+                    resolve();
+                };
+            });
+        },
+        
+        updateStopGroupMenuLabels() {
+            for (let i = 1; i <= 9; i++) {
+                const key = `${this.current.page}-${i}`;
+                const menuItem = document.getElementById(`stopgroup-opt-${i}`);
+                if (menuItem) {
+                    const targets = this.settings.stopGroups[key];
+                    if (targets && targets.length > 0) {
+                        const targetList = targets.map(t => t.split('-')[1]).join(',');
+                        menuItem.textContent = `⏹️ GRUPO STOP: ${targetList}`;
+                    } else {
+                        menuItem.textContent = '⏹️ GRUPO STOP: NENHUM';
+                    }
+                }
+            }
+        }
+    };
+
+    // ============================================
+    // INICIALIZAÇÃO DA PÁGINA
+    // ============================================
+
+    // Elemento para alertas
+    function showAlert(text) {
+        const alert = document.getElementById('alert');
+        alert.textContent = text;
+        alert.style.display = 'block';
+        setTimeout(() => alert.style.display = 'none', 1200);
+    }
+
+    // Criar os 9 pads
+    function createPads() {
+        const grid = document.getElementById('padGrid');
+        
+        for (let i = 1; i <= 9; i++) {
+            const pad = document.createElement('div');
+            pad.className = 'pad';
+            pad.id = `pad-${i}`;
+            pad.innerHTML = `
+                <div class="p-idx">${i}</div>
+                
+                <div class="pad-controls">
+                    <div class="volume-horizontal" id="vol-container-${i}">
+                        <div class="vol-horizontal-track" id="vol-track-${i}">
+                            <div class="vol-horizontal-fill" id="vol-fill-${i}"></div>
+                            <div class="vol-horizontal-slider" id="vol-slider-${i}"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="btn-square fade-control" id="fade-${i}" onclick="cycleFade(${i})" title="Clique para alternar Fade">–</div>
+                    
+                    <button class="btn-square btn-loop" id="loop-${i}" onclick="toggleLoopBtn(${i})" title="Loop ON/OFF">
+                        <svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+                    </button>
+                    
+                    <div class="p-menu-trigger" onclick="toggleMenu(event, ${i})">⋮</div>
+                    
+                    <div class="ctx-menu" id="menu-${i}">
+                        <div class="ctx-opt" onclick="clickInput(${i})">📁 CARREGAR ÁUDIO</div>
+                        <div class="ctx-opt" onclick="openStopGroupModal(${i})" id="stopgroup-opt-${i}">⏹️ GRUPO STOP: NENHUM</div>
+                        <div class="ctx-opt" style="color:#ff4d4d" onclick="clearSlot(${i})">🗑️ LIMPAR PAD</div>
+                    </div>
+                </div>
+                
+                <div class="prog-bar" id="prog-${i}"></div>
+                <div class="p-title" id="name-${i}">---</div>
+                
+                <div class="p-footer">
+                    <span id="cur-${i}">00:00</span>
+                    <span id="rem-${i}" style="color:#ff4d4d">00:00</span>
+                </div>
+                <input type="file" id="in-${i}" style="display:none" accept="audio/*" onchange="handleFile(event, ${i})">
+            `;
+            
+            // Configurar slider de volume
+            setupVolumeSlider(i);
+            
+            // Configurar clique no pad
+            pad.onclick = (e) => {
+                if (!e.target.closest('.pad-controls') && !e.target.closest('.ctx-menu')) {
+                    MasterConsole.initAudio();
+                    MasterConsole.playSound(i);
                 }
             };
             
-            // ETAPA 2: Atualizar indicador
-            updateActiveAudioIndicator();
+            grid.appendChild(pad);
+        }
+    }
+
+    // Configurar slider de volume
+    function setupVolumeSlider(padId) {
+        const track = document.getElementById(`vol-track-${padId}`);
+        const slider = document.getElementById(`vol-slider-${padId}`);
+        const fill = document.getElementById(`vol-fill-${padId}`);
+        
+        if (!track || !slider || !fill) return;
+        
+        let isDragging = false;
+        
+        const updateVolume = (clientX) => {
+            const rect = track.getBoundingClientRect();
+            let x = clientX - rect.left;
+            x = Math.max(0, Math.min(x, rect.width));
             
-        } catch(err) {
-            console.error("Erro ao tocar:", err);
-            showAlert("ERRO AO TOCAR");
-        }
-    }
-
-    function stopSound(id, immediate = false) {
-        const audioKey = `${currentPage}-${id}`;
+            const volume = x / rect.width;
+            MasterConsole.updatePadVolume(padId, volume);
+            
+            const percent = volume * 100;
+            slider.style.left = `${percent}%`;
+            fill.style.width = `${percent}%`;
+        };
         
-        if(activeSources[id]) { 
-            try { 
-                const key = `${activeSources[id].page}-${id}`;
-                if (!immediate && padFades[key]?.out > 0) {
-                    // Fade out suave
-                    const now = audioCtx.currentTime;
-                    activeSources[id].gain.gain.cancelScheduledValues(now);
-                    activeSources[id].gain.gain.setValueAtTime(
-                        activeSources[id].gain.gain.value, 
-                        now
-                    );
-                    activeSources[id].gain.gain.exponentialRampToValueAtTime(
-                        0.001, 
-                        now + padFades[key].out
-                    );
-                    setTimeout(() => {
-                        if (activeSources[id]?.source) {
-                            try { activeSources[id].source.stop(); } catch(e) {}
-                        }
-                        // ETAPA 2: Remover do registro
-                        activeAudios.delete(audioKey);
-                        updateActiveAudioIndicator();
-                    }, padFades[key].out * 1000);
-                } else {
-                    // Parada imediata
-                    activeSources[id].source.stop();
-                    // ETAPA 2: Remover do registro
-                    activeAudios.delete(audioKey);
-                    updateActiveAudioIndicator();
-                }
-            } catch(e) {} 
-            activeSources[id] = null;
-        }
+        // Mouse events
+        slider.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            isDragging = true;
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
         
-        // ETAPA 2: Atualizar registro
-        if (activeAudios.has(audioKey)) {
-            activeAudios.get(audioKey).playing = false;
-        }
+        track.addEventListener('click', (e) => {
+            e.stopPropagation();
+            updateVolume(e.clientX);
+        });
         
-        document.getElementById(`pad-${id}`).classList.remove('active');
-        document.getElementById(`prog-${id}`).style.width = "0%";
-        document.getElementById(`cur-${id}`).innerText = "00:00";
-        if (sounds[id]) {
-            document.getElementById(`rem-${id}`).innerText = formatTime(sounds[id].duration);
-        }
+        const onMouseMove = (e) => {
+            if (!isDragging) return;
+            updateVolume(e.clientX);
+        };
         
-        // ETAPA 2: Atualizar indicador
-        updateActiveAudioIndicator();
-    }
-
-    // ETAPA 2: Parar som de qualquer banco
-    function stopSoundFromAnywhere(padId, page) {
-        const audioKey = `${page}-${padId}`;
+        const onMouseUp = () => {
+            isDragging = false;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
         
-        // Se estiver tocando na página atual
-        if (page === currentPage && activeSources[padId]) {
-            stopSound(padId, true);
-        } else {
-            // Se estiver tocando em outro banco
-            if (activeAudios.has(audioKey)) {
-                activeAudios.get(audioKey).playing = false;
-                activeAudios.delete(audioKey);
-                updateActiveAudioIndicator();
+        // Touch events
+        slider.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+            isDragging = true;
+            document.addEventListener('touchmove', onTouchMove);
+            document.addEventListener('touchend', onTouchEnd);
+        });
+        
+        track.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+            if (e.touches[0]) {
+                updateVolume(e.touches[0].clientX);
             }
+        });
+        
+        const onTouchMove = (e) => {
+            if (!isDragging || !e.touches[0]) return;
+            updateVolume(e.touches[0].clientX);
+        };
+        
+        const onTouchEnd = () => {
+            isDragging = false;
+            document.removeEventListener('touchmove', onTouchMove);
+            document.removeEventListener('touchend', onTouchEnd);
+        };
+    }
+
+    // ============================================
+    // FUNÇÕES GLOBAIS (interface com o HTML)
+    // ============================================
+
+    // Inicialização
+    async function initApp() {
+        // Criar pads
+        createPads();
+        
+        // Inicializar banco de dados
+        try {
+            await MasterConsole.initDB();
+            await MasterConsole.changePage('A');
+            await MasterConsole.loadStopGroups();
+        } catch (error) {
+            console.error("Erro na inicialização:", error);
+            showAlert("ERRO NA INICIALIZAÇÃO");
         }
+        
+        // Configurar eventos globais
+        setupGlobalEvents();
+        
+        // Inicializar áudio no primeiro clique
+        document.body.addEventListener('click', function initAudioOnClick() {
+            MasterConsole.initAudio();
+            document.body.removeEventListener('click', initAudioOnClick);
+        }, { once: true });
     }
 
-    function stopAll() { 
-        // ETAPA 2: Parar todos os áudios de todos os bancos
-        activeAudios.clear();
-        Object.keys(activeSources).forEach(id => stopSound(id, true)); 
-        updateActiveAudioIndicator();
+    function setupGlobalEvents() {
+        // Teclado
+        window.addEventListener('keydown', (e) => {
+            if (e.key >= '1' && e.key <= '9') {
+                MasterConsole.initAudio();
+                MasterConsole.playSound(parseInt(e.key));
+            }
+            if (e.key === '0' || e.key === 'Escape') {
+                MasterConsole.stopAll();
+            }
+        });
+        
+        // Master volume
+        document.getElementById('gainSlider').oninput = (e) => {
+            if (MasterConsole.audio.gain) {
+                MasterConsole.audio.gain.gain.value = parseFloat(e.target.value);
+            }
+        };
+        
+        // Fechar menus ao clicar fora
+        window.onclick = () => {
+            document.querySelectorAll('.ctx-menu').forEach(m => m.classList.remove('show'));
+        };
     }
 
-    function formatTime(s) {
-        const m = Math.floor(s/60); 
-        const sc = Math.floor(s%60);
-        return `${m.toString().padStart(2,'0')}:${sc.toString().padStart(2,'0')}`;
+    // Funções chamadas pelo HTML
+    function changePage(page) {
+        MasterConsole.changePage(page);
+    }
+    
+    function playSound(id) {
+        MasterConsole.playSound(id);
+    }
+    
+    function stopSound(id) {
+        MasterConsole.stopSound(id);
+    }
+    
+    function stopAll() {
+        MasterConsole.stopAll();
+    }
+    
+    function toggleLoopBtn(id) {
+        MasterConsole.toggleLoop(id);
+    }
+    
+    function cycleFade(id) {
+        MasterConsole.cycleFadeSetting(id);
+    }
+    
+    function updatePadVolume(id, volume) {
+        MasterConsole.updatePadVolume(id, volume);
     }
 
-    window.addEventListener('keydown', (e) => {
-        if(e.key >= '1' && e.key <= '9') {
-            initAudio();
-            playSound(parseInt(e.key));
-        }
-        if(e.key === '0' || e.key === 'Escape') stopAll();
-    });
+    // ============================================
+    // FUNÇÕES DE ARQUIVO E PROJETO
+    // ============================================
 
     async function handleFile(e, id) {
-        const file = e.target.files[0]; 
-        if(!file) return;
+        const file = e.target.files[0];
+        if (!file) return;
         
-        if(file.size > 10 * 1024 * 1024) {
+        if (file.size > 10 * 1024 * 1024) {
             showAlert("ARQUIVO MUITO GRANDE (MAX 10MB)");
             return;
         }
         
         try {
-            if (!audioCtx) initAudio();
             const raw = await file.arrayBuffer();
-            const buffer = await audioCtx.decodeAudioData(raw.slice(0));
+            
+            // Decodificar áudio
+            if (!MasterConsole.audio.ctx) MasterConsole.initAudio();
+            const buffer = await MasterConsole.audio.ctx.decodeAudioData(raw.slice(0));
+            
             const name = file.name.replace(/\.[^/.]+$/, "").substring(0, 20);
+            const uid = `${MasterConsole.current.page}-${id}`;
             
-            const uid = `${currentPage}-${id}`;
-            sounds[id] = { buffer, name, duration: buffer.duration };
+            // Salvar no cache
+            MasterConsole.current.sounds[id] = {
+                buffer,
+                name,
+                duration: buffer.duration
+            };
             
-            if (db) {
-                const tx = db.transaction("pads", "readwrite");
-                tx.objectStore("pads").put({ 
+            // Salvar no IndexedDB
+            if (MasterConsole.db) {
+                const tx = MasterConsole.db.transaction("pads", "readwrite");
+                tx.objectStore("pads").put({
                     uid: uid,
-                    page: currentPage,
+                    page: MasterConsole.current.page,
                     id: id,
-                    name: name, 
+                    name: name,
                     data: raw
                 });
-                showAlert(`PAD ${id} SALVO NO BANCO ${currentPage}`);
             }
             
+            // Atualizar UI
             document.getElementById(`name-${id}`).innerText = name;
-            document.getElementById(`rem-${id}`).innerText = formatTime(buffer.duration);
+            document.getElementById(`rem-${id}`).innerText = MasterConsole.formatTime(buffer.duration);
+            
+            showAlert(`PAD ${id} SALVO NO BANCO ${MasterConsole.current.page}`);
             e.target.value = '';
+            
         } catch(err) {
             console.error("Erro ao carregar arquivo:", err);
             showAlert("ERRO NO ARQUIVO");
@@ -1113,28 +1312,30 @@
     }
 
     function clearSlot(id) {
-        stopSound(id); 
-        delete sounds[id];
+        MasterConsole.stopSound(id);
+        delete MasterConsole.current.sounds[id];
         
-        if (db) {
-            const uid = `${currentPage}-${id}`;
-            const tx = db.transaction("pads", "readwrite");
+        if (MasterConsole.db) {
+            const uid = `${MasterConsole.current.page}-${id}`;
+            const tx = MasterConsole.db.transaction("pads", "readwrite");
+            
+            // Remover áudio
             tx.objectStore("pads").delete(uid);
             
-            // Também limpar configurações
-            const settingsUid = `settings-${uid}`;
-            tx.objectStore("pads").delete(settingsUid);
+            // Remover configurações
+            tx.objectStore("pads").delete(`settings-${uid}`);
             
-            // ETAPA 3: Limpar stop groups
-            const stopGroupUid = `stopgroup-${uid}`;
-            tx.objectStore("pads").delete(stopGroupUid);
-            delete stopGroups[uid];
+            // Remover stop group
+            tx.objectStore("pads").delete(`stopgroup-${uid}`);
+            
+            // Remover do cache
+            delete MasterConsole.settings.stopGroups[uid];
         }
         
+        // Resetar UI
         document.getElementById(`name-${id}`).innerText = "---";
         document.getElementById(`rem-${id}`).innerText = "00:00";
         
-        // Resetar controles visuais
         const slider = document.getElementById(`vol-slider-${id}`);
         const fill = document.getElementById(`vol-fill-${id}`);
         if (slider && fill) {
@@ -1155,63 +1356,48 @@
             loopBtn.classList.remove('active');
         }
         
-        const key = `${currentPage}-${id}`;
-        delete padVolumes[key];
-        delete padFades[key];
-        delete loops[key];
+        const key = `${MasterConsole.current.page}-${id}`;
+        delete MasterConsole.settings.volumes[key];
+        delete MasterConsole.settings.fades[key];
+        delete MasterConsole.settings.loops[key];
         
-        updateStopGroupMenuLabels(); // ETAPA 3: Atualizar menu
-        
+        MasterConsole.updateStopGroupMenuLabels();
         showAlert(`PAD ${id} LIMPO`);
     }
 
     function confirmWipe() {
         if (confirm("LIMPAR TODA A MEMÓRIA? Perderá todos os áudios em todos os bancos.")) {
-            stopAll();
-            sounds = {};
-            loops = {};
-            padVolumes = {};
-            padFades = {};
-            stopGroups = {}; // ETAPA 3: Limpar grupos
-            activeAudios.clear(); // ETAPA 2: Limpar áudios ativos
+            MasterConsole.stopAll();
             
-            if (db) {
-                const tx = db.transaction("pads", "readwrite");
-                const store = tx.objectStore("pads");
-                store.clear(); 
-                tx.oncomplete = () => { 
-                    showAlert("MEMÓRIA COMPLETAMENTE RESETADA"); 
-                    changePage(currentPage); 
+            // Limpar caches
+            MasterConsole.current.sounds = {};
+            MasterConsole.settings = {
+                volumes: {},
+                fades: {},
+                loops: {},
+                stopGroups: {}
+            };
+            MasterConsole.tracking.activeAudios.clear();
+            
+            // Limpar banco de dados
+            if (MasterConsole.db) {
+                const tx = MasterConsole.db.transaction("pads", "readwrite");
+                tx.objectStore("pads").clear();
+                tx.oncomplete = () => {
+                    showAlert("MEMÓRIA COMPLETAMENTE RESETADA");
+                    MasterConsole.changePage(MasterConsole.current.page);
                 };
             }
         }
     }
 
-    function updateVU() {
-        if (!analyser) {
-            requestAnimationFrame(updateVU);
-            return;
-        }
-        const data = new Float32Array(analyser.frequencyBinCount);
-        analyser.getFloatTimeDomainData(data);
-        let sum = 0; 
-        for(let a of data) sum += a*a;
-        let rms = Math.sqrt(sum/data.length);
-        let level = 0;
-        if (rms > 0) {
-            level = Math.max(0, Math.min(100, (((20 * Math.log10(rms)) + 48) / 48) * 100));
-        }
-        document.getElementById('vu-fill').style.width = level + "%";
-        requestAnimationFrame(updateVU);
-    }
-
     async function saveProject() {
-        if (!db) {
+        if (!MasterConsole.db) {
             showAlert("BANCO DE DADOS NÃO DISPONÍVEL");
             return;
         }
         
-        const tx = db.transaction("pads", "readonly");
+        const tx = MasterConsole.db.transaction("pads", "readonly");
         const request = tx.objectStore("pads").getAll();
         
         request.onsuccess = (e) => {
@@ -1223,10 +1409,10 @@
             
             const processed = allData.map(item => {
                 if (item.type === 'settings') {
-                    return { 
+                    return {
                         type: 'settings',
-                        page: item.page, 
-                        pad: item.pad, 
+                        page: item.page,
+                        pad: item.pad,
                         volume: item.volume,
                         fadeIn: item.fadeIn,
                         fadeOut: item.fadeOut,
@@ -1246,11 +1432,11 @@
                     for (let i = 0; i < bytes.byteLength; i++) {
                         binary += String.fromCharCode(bytes[i]);
                     }
-                    return { 
+                    return {
                         uid: item.uid,
-                        page: item.page, 
-                        id: item.id, 
-                        name: item.name, 
+                        page: item.page,
+                        id: item.id,
+                        name: item.name,
                         data: btoa(binary)
                     };
                 }
@@ -1271,19 +1457,15 @@
             setTimeout(() => URL.revokeObjectURL(url), 100);
             
             const audioCount = allData.filter(d => d.type !== 'settings' && d.type !== 'stopgroup').length;
-            showAlert(`BACKUP SALVO (${audioCount} áudio(s) + configurações)`);
-        };
-        
-        request.onerror = () => {
-            showAlert("ERRO AO ACESSAR DADOS PARA SALVAR");
+            showAlert(`BACKUP SALVO (${audioCount} áudio(s))`);
         };
     }
 
     async function loadProject(e) {
-        const file = e.target.files[0]; 
-        if(!file) return;
+        const file = e.target.files[0];
+        if (!file) return;
         
-        if (!db) {
+        if (!MasterConsole.db) {
             showAlert("BANCO DE DADOS NÃO DISPONÍVEL");
             return;
         }
@@ -1292,16 +1474,16 @@
         reader.onload = async (ev) => {
             try {
                 const data = JSON.parse(ev.target.result);
-                const tx = db.transaction("pads", "readwrite");
+                const tx = MasterConsole.db.transaction("pads", "readwrite");
                 const store = tx.objectStore("pads");
                 store.clear();
                 
-                for(let item of data) {
+                for (let item of data) {
                     if (item.type === 'settings') {
-                        store.put({ 
+                        store.put({
                             uid: `settings-${item.page}-${item.pad}`,
                             type: 'settings',
-                            page: item.page, 
+                            page: item.page,
                             pad: item.pad,
                             volume: item.volume,
                             fadeIn: item.fadeIn,
@@ -1319,20 +1501,20 @@
                         });
                     } else {
                         const bin = Uint8Array.from(atob(item.data), c => c.charCodeAt(0)).buffer;
-                        store.put({ 
+                        store.put({
                             uid: item.uid,
-                            page: item.page, 
-                            id: item.id, 
-                            name: item.name, 
-                            data: bin 
+                            page: item.page,
+                            id: item.id,
+                            name: item.name,
+                            data: bin
                         });
                     }
                 }
                 
-                tx.oncomplete = () => { 
-                    showAlert("PROJETO RESTAURADO!"); 
-                    changePage('A'); 
-                    loadStopGroups(); // ETAPA 3: Carregar grupos
+                tx.oncomplete = () => {
+                    showAlert("PROJETO RESTAURADO!");
+                    MasterConsole.changePage('A');
+                    MasterConsole.loadStopGroups();
                 };
                 
                 e.target.value = '';
@@ -1344,40 +1526,46 @@
         reader.readAsText(file);
     }
 
-    function clickInput(id) { 
-        document.getElementById(`in-${id}`).click(); 
+    // ============================================
+    // FUNÇÕES DE INTERFACE
+    // ============================================
+
+    function clickInput(id) {
+        document.getElementById(`in-${id}`).click();
     }
     
-    function toggleCtx(e, id) { 
-        e.stopPropagation(); 
+    function toggleMenu(e, id) {
+        e.stopPropagation();
         document.querySelectorAll('.ctx-menu').forEach(m => {
-            if(m.id !== `menu-${id}`) m.classList.remove('show');
+            if (m.id !== `menu-${id}`) m.classList.remove('show');
         });
         document.getElementById(`menu-${id}`).classList.toggle('show');
     }
-    
-    // ETAPA 3: Sistema Stop Group
+
+    // ============================================
+    // STOP GROUPS MODAL
+    // ============================================
+
     let currentEditingPad = null;
     
     function openStopGroupModal(padId) {
         currentEditingPad = padId;
-        const key = `${currentPage}-${padId}`;
+        const key = `${MasterConsole.current.page}-${padId}`;
         
-        // Atualizar título e descrição
         document.getElementById('modalTitle').textContent = `STOP GROUP - PAD ${padId}`;
         document.getElementById('modalDesc').textContent = 
             `Selecione os pads que serão PARADOS quando o Pad ${padId} tocar.`;
         
-        // Criar checkboxes para todos os pads (1-9)
         const grid = document.getElementById('stopGroupGrid');
         grid.innerHTML = '';
         
         for (let i = 1; i <= 9; i++) {
-            if (i === padId) continue; // Não incluir o próprio pad
+            if (i === padId) continue;
             
             const checkId = `stop-check-${i}`;
-            const targetKey = `${currentPage}-${i}`;
-            const isChecked = stopGroups[key]?.includes(targetKey) || false;
+            const targetKey = `${MasterConsole.current.page}-${i}`;
+            const targets = MasterConsole.settings.stopGroups[key];
+            const isChecked = targets ? targets.includes(targetKey) : false;
             
             const checkDiv = document.createElement('div');
             checkDiv.className = 'stop-group-check';
@@ -1388,7 +1576,6 @@
             grid.appendChild(checkDiv);
         }
         
-        // Mostrar modal
         document.getElementById('stopGroupModal').classList.add('active');
         document.querySelectorAll('.ctx-menu').forEach(m => m.classList.remove('show'));
     }
@@ -1399,97 +1586,80 @@
     }
     
     async function saveStopGroup() {
-        if (!currentEditingPad || !db) return;
+        if (!currentEditingPad || !MasterConsole.db) return;
         
-        const key = `${currentPage}-${currentEditingPad}`;
+        const key = `${MasterConsole.current.page}-${currentEditingPad}`;
         const targets = [];
         
-        // Coletar pads selecionados
         for (let i = 1; i <= 9; i++) {
             if (i === currentEditingPad) continue;
             const check = document.getElementById(`stop-check-${i}`);
             if (check && check.checked) {
-                targets.push(`${currentPage}-${i}`);
+                targets.push(`${MasterConsole.current.page}-${i}`);
             }
         }
         
-        // Salvar no IndexedDB
-        const tx = db.transaction("pads", "readwrite");
+        const tx = MasterConsole.db.transaction("pads", "readwrite");
         const store = tx.objectStore("pads");
         
         if (targets.length > 0) {
             await store.put({
                 uid: `stopgroup-${key}`,
                 type: 'stopgroup',
-                page: currentPage,
+                page: MasterConsole.current.page,
                 pad: currentEditingPad,
                 targets: targets
             });
-            stopGroups[key] = targets;
+            MasterConsole.settings.stopGroups[key] = targets;
         } else {
-            // Se não houver targets, remover do banco
             await store.delete(`stopgroup-${key}`);
-            delete stopGroups[key];
+            delete MasterConsole.settings.stopGroups[key];
         }
         
         tx.oncomplete = () => {
-            updateStopGroupMenuLabels();
+            MasterConsole.updateStopGroupMenuLabels();
             showAlert(`STOP GROUP PAD ${currentEditingPad}: ${targets.length || 'NENHUM'} alvo(s)`);
             closeStopGroupModal();
         };
     }
-    
-    async function loadStopGroups() {
-        if (!db) return;
-        
-        const tx = db.transaction("pads", "readonly");
-        const request = tx.objectStore("pads").getAll();
-        
-        request.onsuccess = (e) => {
-            const allData = e.target.result;
-            allData.filter(item => item.type === 'stopgroup').forEach(item => {
-                const key = `${item.page}-${item.pad}`;
-                stopGroups[key] = item.targets || [];
-            });
-            
-            // Atualizar menus
-            updateStopGroupMenuLabels();
-        };
-    }
-    
-    function updateStopGroupMenuLabels() {
-        for (let i = 1; i <= 9; i++) {
-            const key = `${currentPage}-${i}`;
-            const menuItem = document.getElementById(`stopgroup-opt-${i}`);
-            if (menuItem) {
-                if (stopGroups[key] && stopGroups[key].length > 0) {
-                    // Formatar lista de targets
-                    const targetsList = stopGroups[key]
-                        .map(t => {
-                            const parts = t.split('-');
-                            return parts[1]; // Apenas o número do pad
-                        })
-                        .join(',');
-                    menuItem.textContent = `⏹️ GRUPO STOP: ${targetsList}`;
-                } else {
-                    menuItem.textContent = '⏹️ GRUPO STOP: NENHUM';
-                }
-            }
+
+    // ============================================
+    // VU METER
+    // ============================================
+
+    function updateVU() {
+        if (!MasterConsole.audio.analyser) {
+            requestAnimationFrame(updateVU);
+            return;
         }
+        
+        const data = new Float32Array(MasterConsole.audio.analyser.frequencyBinCount);
+        MasterConsole.audio.analyser.getFloatTimeDomainData(data);
+        
+        let sum = 0;
+        for (let a of data) sum += a * a;
+        let rms = Math.sqrt(sum / data.length);
+        
+        let level = 0;
+        if (rms > 0) {
+            level = Math.max(0, Math.min(100, (((20 * Math.log10(rms)) + 48) / 48) * 100));
+        }
+        
+        document.getElementById('vu-fill').style.width = level + "%";
+        requestAnimationFrame(updateVU);
     }
-    
-    window.onclick = () => {
-        document.querySelectorAll('.ctx-menu').forEach(m => m.classList.remove('show'));
-    };
-    
-    document.getElementById('gainSlider').oninput = (e) => {
-        if(masterGain) masterGain.gain.value = parseFloat(e.target.value);
-    };
-    
-    // Inicialização
-    setTimeout(() => {
-        if (!audioCtx) initAudio();
-    }, 500);
+
+    // ============================================
+    // INICIAR APLICAÇÃO
+    // ============================================
+
+    // Iniciar quando a página carregar
+    window.addEventListener('DOMContentLoaded', () => {
+        initApp();
+        // Iniciar VU Meter
+        updateVU();
+    });
+
 </script>
 </body>
 </html>
