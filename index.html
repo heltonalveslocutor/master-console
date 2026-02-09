@@ -72,19 +72,21 @@
 
         .p-idx { position: absolute; top: 8px; left: 12px; font-size: 0.9rem; font-weight: 800; color: #444; }
         
-        /* ÁREA DE CONTROLES ATUALIZADA */
+        /* ÁREA DE CONTROLES AJUSTADA */
         .pad-controls { 
             position: absolute; top: 6px; right: 10px; 
-            display: flex; gap: 8px; z-index: 10; 
+            display: flex; gap: 10px; /* MAIS ESPAÇO ENTRE ELEMENTOS */
+            z-index: 10; 
             align-items: center;
         }
         
-        /* VOLUME SLIDER HORIZONTAL (com mais espaçamento) */
+        /* VOLUME SLIDER HORIZONTAL com mais margem à direita */
         .volume-horizontal {
-            width: 42px;
+            width: 45px; /* Um pouco mais largo */
             height: 16px;
             display: flex;
             align-items: center;
+            margin-right: 4px; /* MAIS ESPAÇO antes do fade */
         }
         
         .vol-horizontal-track {
@@ -101,7 +103,7 @@
             height: 100%;
             background: var(--primary);
             border-radius: 2px;
-            width: 100%; /* Será ajustado via JS */
+            width: 100%;
         }
         
         .vol-horizontal-slider {
@@ -117,10 +119,10 @@
             z-index: 2;
         }
         
-        /* BOTÕES QUADRADOS ARREDONDADOS (FADE e LOOP) */
+        /* BOTÕES QUADRADOS ARREDONDADOS - TAMANHOS IGUAIS */
         .btn-square {
-            width: 22px;
-            height: 22px;
+            width: 22px;  /* TAMANHO IGUAL PARA AMBOS */
+            height: 22px; /* TAMANHO IGUAL PARA AMBOS */
             border-radius: 6px;
             display: flex;
             align-items: center;
@@ -131,29 +133,33 @@
             background: rgba(30, 30, 30, 0.7);
         }
         
-        /* FADE CONTROL - quadrado arredondado */
+        /* FADE CONTROL - com estado ativo permanente */
         .fade-control { 
-            font-size: 0.75rem;
+            font-size: 0.8rem; /* Tamanho harmonioso */
             color: var(--dim);
             font-weight: 600;
         }
+        .fade-control.has-fade {
+            border: 2px solid var(--primary);
+            box-shadow: 0 0 6px var(--primary);
+            background: rgba(0, 229, 255, 0.1);
+            color: var(--primary);
+        }
         
-        /* LOOP BUTTON - quadrado arredondado */
+        /* LOOP BUTTON - com ícone maior */
         .btn-loop { 
             color: #555;
         }
         .btn-loop svg { 
-            width: 14px; 
-            height: 14px; 
+            width: 16px; /* ÍCONE MAIOR (era 14px) */
+            height: 16px; /* ÍCONE MAIOR */
             fill: currentColor;
         }
-        
-        /* ESTADO ATIVO - contorno luminoso com cor do banco */
-        .btn-square.active {
+        .btn-loop.active {
             border: 2px solid var(--primary);
-            box-shadow: 0 0 8px var(--primary);
-            background: rgba(0, 229, 255, 0.15);
-            color: var(--primary) !important;
+            box-shadow: 0 0 6px var(--primary);
+            background: rgba(0, 229, 255, 0.1);
+            color: var(--primary);
         }
         
         .btn-square:hover { 
@@ -205,8 +211,8 @@
             .master-strip { grid-template-columns: 1fr; gap: 10px; }
             .page-tabs { flex-wrap: wrap; }
             .pad { padding: 10px 12px; }
-            .volume-horizontal { width: 40px; }
-            .btn-square { width: 20px; height: 20px; }
+            .volume-horizontal { width: 42px; }
+            .pad-controls { gap: 8px; }
         }
         @media (max-width: 480px) {
             .grid-pads { grid-template-columns: 1fr; }
@@ -214,11 +220,11 @@
             .icon-actions { width: 100%; justify-content: center; }
             .pad { height: 100px; }
             .p-title { font-size: 1rem; margin-top: 15px; }
-            .volume-horizontal { width: 36px; }
+            .volume-horizontal { width: 40px; }
             .pad-controls { gap: 6px; }
-            .btn-square { width: 18px; height: 18px; }
-            .fade-control { font-size: 0.65rem; }
-            .btn-loop svg { width: 12px; height: 12px; }
+            .btn-square { width: 20px; height: 20px; }
+            .fade-control { font-size: 0.7rem; }
+            .btn-loop svg { width: 14px; height: 14px; }
         }
     </style>
 </head>
@@ -298,7 +304,7 @@
         document.body.removeEventListener('click', initOnClick);
     });
 
-    // Criar os 9 pads com layout atualizado
+    // Criar os 9 pads com layout ajustado
     const grid = document.getElementById('padGrid');
     for (let i = 1; i <= 9; i++) {
         const div = document.createElement('div');
@@ -306,7 +312,7 @@
         div.innerHTML = `
             <div class="p-idx">${i}</div>
             
-            <!-- CONTROLES COM NOVO LAYOUT -->
+            <!-- CONTROLES COM MAIS ESPAÇO E HARMONIA -->
             <div class="pad-controls">
                 <!-- 1. VOLUME SLIDER HORIZONTAL (com mais espaçamento) -->
                 <div class="volume-horizontal" id="vol-container-${i}">
@@ -320,7 +326,7 @@
                 <div class="btn-square fade-control" id="fade-${i}" onclick="cycleFadeSetting(${i})" 
                      title="Clique para alternar Fade">–</div>
                 
-                <!-- 3. LOOP BUTTON - quadrado arredondado -->
+                <!-- 3. LOOP BUTTON - quadrado arredondado com ícone maior -->
                 <button class="btn-square btn-loop" id="loop-${i}" onclick="toggleLoop(event, ${i})" title="Loop ON/OFF">
                     <svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
                 </button>
@@ -468,6 +474,9 @@
         const loopBtn = document.getElementById(`loop-${id}`);
         loopBtn.classList.toggle('active', loops[key]);
         showAlert(`PAD ${id}: LOOP ${loops[key] ? 'ON' : 'OFF'}`);
+        
+        // Salvar estado do loop
+        savePadSettings(id);
     }
 
     // Volume individual e fade por pad
@@ -526,11 +535,20 @@
         fadeEl.textContent = opt.symbol;
         fadeEl.title = opt.title;
         
-        // Feedback visual - contorno luminoso temporário
-        fadeEl.classList.add('active');
+        // ATUALIZADO: Fade permanece "aceso" quando não for OFF
+        if (padFades[key].index === 0) {
+            fadeEl.classList.remove('has-fade');
+            fadeEl.style.color = ''; // Cor padrão
+        } else {
+            fadeEl.classList.add('has-fade');
+            fadeEl.style.color = 'var(--primary)'; // Cor do banco
+        }
+        
+        // Feedback visual temporário
+        fadeEl.style.transform = 'scale(1.1)';
         setTimeout(() => {
-            fadeEl.classList.remove('active');
-        }, 300);
+            fadeEl.style.transform = '';
+        }, 150);
         
         savePadSettings(padId);
     }
@@ -587,7 +605,8 @@
             volume: padVolumes[key] || 1,
             fadeIn: padFades[key]?.in || 0,
             fadeOut: padFades[key]?.out || 0,
-            fadeIndex: padFades[key]?.index || 0
+            fadeIndex: padFades[key]?.index || 0,
+            loop: loops[key] || false
         };
         
         const tx = db.transaction("pads", "readwrite");
@@ -612,6 +631,11 @@
                         out: item.fadeOut,
                         index: item.fadeIndex || 0
                     };
+                }
+                
+                // Restaurar estado do loop
+                if (item.loop !== undefined) {
+                    loops[key] = item.loop;
                 }
                 
                 // Atualizar controles visuais se estiver na página atual
@@ -640,14 +664,21 @@
                         const idx = item.fadeIndex || 0;
                         fadeEl.textContent = symbols[idx] || "–";
                         fadeEl.title = titles[idx] || "Sem Fade";
+                        
+                        // Aplicar estado visual permanente do fade
+                        if (idx === 0) {
+                            fadeEl.classList.remove('has-fade');
+                            fadeEl.style.color = '';
+                        } else {
+                            fadeEl.classList.add('has-fade');
+                            fadeEl.style.color = 'var(--primary)';
+                        }
                     }
                     
                     // Loop
                     const loopBtn = document.getElementById(`loop-${item.pad}`);
-                    const loopKey = `${item.page}-${item.pad}`;
                     if (loopBtn) {
-                        // Note: Loop status não é salvo em settings, precisa ser recalculado
-                        // Apenas aplica estilo se loops[loopKey] existir
+                        loopBtn.classList.toggle('active', !!loops[key]);
                     }
                 }
             });
@@ -655,7 +686,6 @@
     }
 
     async function changePage(p) {
-        // NÃO paramos os sons ao mudar de página (será corrigido na ETAPA 2)
         currentPage = p;
         document.body.className = `pg-${p}`;
         document.getElementById('pg-status').innerText = `MODO: BANCO ${p}`;
@@ -670,10 +700,6 @@
                 document.getElementById(`prog-${i}`).style.width = "0%";
                 document.getElementById(`cur-${i}`).innerText = "00:00";
             }
-            // Atualizar estado visual do loop
-            const loopKey = currentPage + i;
-            const loopBtn = document.getElementById(`loop-${i}`);
-            loopBtn.classList.toggle('active', !!loops[loopKey]);
         }
 
         sounds = {}; // Limpar cache de sons da página atual
@@ -706,7 +732,7 @@
                 }
                 showAlert(`BANCO ${p} PRONTO`);
                 
-                // Carregar configurações dos pads
+                // Carregar configurações dos pads (inclui loop)
                 loadPadSettings();
             };
         }
@@ -887,7 +913,8 @@
         if (fadeEl) {
             fadeEl.textContent = "–";
             fadeEl.title = "Sem Fade";
-            fadeEl.classList.remove('active');
+            fadeEl.classList.remove('has-fade');
+            fadeEl.style.color = '';
         }
         
         const loopBtn = document.getElementById(`loop-${id}`);
@@ -966,7 +993,8 @@
                         volume: item.volume,
                         fadeIn: item.fadeIn,
                         fadeOut: item.fadeOut,
-                        fadeIndex: item.fadeIndex
+                        fadeIndex: item.fadeIndex,
+                        loop: item.loop || false
                     };
                 } else {
                     const bytes = new Uint8Array(item.data);
@@ -1033,7 +1061,8 @@
                             volume: item.volume,
                             fadeIn: item.fadeIn,
                             fadeOut: item.fadeOut,
-                            fadeIndex: item.fadeIndex
+                            fadeIndex: item.fadeIndex,
+                            loop: item.loop || false
                         });
                     } else {
                         const bin = Uint8Array.from(atob(item.data), c => c.charCodeAt(0)).buffer;
