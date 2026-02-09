@@ -49,7 +49,7 @@
         .tab { background: #1a1a1a; border: 2px solid #333; color: var(--dim); padding: 6px 25px; border-radius: 6px; cursor: pointer; font-weight: 800; font-size: 0.85rem; transition: 0.3s; }
         .tab.active { background: var(--primary); color: #000; border-color: var(--primary); }
 
-        /* ETAPA 2: Indicador de áudio ativo */
+        /* ETAPA 2: Indicador de áudio ativo EM OUTRO BANCO */
         .active-audio-indicator {
             display: flex; align-items: center; gap: 10px;
             font-size: 0.85rem; font-weight: 800; color: var(--accent);
@@ -57,8 +57,11 @@
             border-radius: 6px; border: 1px solid rgba(0, 255, 136, 0.3);
             max-width: 250px; overflow: hidden; white-space: nowrap;
             text-overflow: ellipsis;
+            transition: all 0.3s ease;
         }
-        .active-audio-indicator:empty { display: none; }
+        .active-audio-indicator:empty { 
+            display: none; 
+        }
         .active-audio-indicator .playing-icon {
             color: var(--accent); font-size: 1rem; animation: pulse 1.5s infinite;
         }
@@ -364,7 +367,7 @@
             <div class="tab" data-pg="C" onclick="changePage('C')">BANCO C</div>
         </div>
         
-        <!-- ETAPA 2: Indicador de áudio ativo entre bancos -->
+        <!-- ETAPA 2: Indicador de áudio ativo EM OUTRO BANCO -->
         <div class="active-audio-indicator" id="activeAudioIndicator"></div>
         
         <div id="pg-status" style="font-size:0.85rem; font-weight:800; color:var(--primary);">MODO: BANCO A</div>
@@ -394,8 +397,8 @@
 
 <script>
     // ============================================
-    // MASTER CONSOLE - CÓDIGO REORGANIZADO E CORRIGIDO
-    // Versão 4.1 - Com melhorias internas
+    // MASTER CONSOLE - VERSÃO CORRIGIDA
+    // Indicador só mostra áudios de OUTROS BANCOS
     // ============================================
     
     // SISTEMA PRINCIPAL
@@ -435,89 +438,25 @@
         
         // Configurações persistentes
         settings: {
-            volumes: {},      // padVolumes
-            fades: {},        // padFades
-            loops: {},        // loops
-            stopGroups: {}    // stopGroups
+            volumes: {},      // Volumes por pad
+            fades: {},        // Fades por pad
+            loops: {},        // Loops por pad
+            stopGroups: {}    // Stop Groups por pad
         },
         
-        // Rastreamento global
-        tracking: {
-            activeAudios: new Map(), // Áudios ativos entre bancos
-            
-            // Adicionar áudio ativo
-            addActive(padId, page, source, duration) {
-                const key = `${page}-${padId}`;
-                this.activeAudios.set(key, {
-                    pad: padId,
-                    page: page,
-                    playing: true,
-                    startTime: MasterConsole.audio.ctx.currentTime,
-                    duration: duration,
-                    source: source
-                });
-                this.updateIndicator();
-            },
-            
-            // Remover áudio ativo
-            removeActive(padId, page) {
-                const key = `${page}-${padId}`;
-                this.activeAudios.delete(key);
-                this.updateIndicator();
-            },
-            
-            // Atualizar indicador visual
-            updateIndicator() {
-                const indicator = document.getElementById('activeAudioIndicator');
-                
-                if (this.activeAudios.size === 0) {
-                    indicator.innerHTML = '';
-                    return;
-                }
-                
-                let activeList = [];
-                this.activeAudios.forEach((info, key) => {
-                    if (info.playing) {
-                        activeList.push(`Pad ${info.pad} (Banco ${info.page})`);
-                    }
-                });
-                
-                if (activeList.length > 0) {
-                    indicator.innerHTML = `<span class="playing-icon">▶️</span> ${activeList.join(', ')}`;
-                } else {
-                    indicator.innerHTML = '';
-                }
-            },
-            
-            // Parar áudio de qualquer banco
-            stopFromAnywhere(padId, page) {
-                const key = `${page}-${padId}`;
-                const info = this.activeAudios.get(key);
-                
-                if (info) {
-                    // Se estiver na página atual
-                    if (page === MasterConsole.current.page && MasterConsole.current.activeSources[padId]) {
-                        MasterConsole.stopSound(padId, true);
-                    } else {
-                        // Parar fonte se existir
-                        if (info.source) {
-                            try { info.source.stop(); } catch(e) {}
-                        }
-                        this.activeAudios.delete(key);
-                        this.updateIndicator();
-                    }
-                }
-            }
-        },
+        // Rastreamento global de áudios ativos
+        activeAudios: new Map(), // Guarda info de todos os áudios tocando
         
         // Banco de dados
         db: null,
+        
+        // ===== INICIALIZAÇÃO =====
+        
         initDB() {
             return new Promise((resolve, reject) => {
                 const dbReq = indexedDB.open("MasterConsoleDB_v4", 3);
                 
                 dbReq.onupgradeneeded = (e) => {
-                    console.log("Atualizando banco de dados...");
                     this.db = e.target.result;
                     if (!this.db.objectStoreNames.contains('pads')) {
                         const store = this.db.createObjectStore('pads', { keyPath: 'uid' });
@@ -528,25 +467,21 @@
                 
                 dbReq.onsuccess = (e) => { 
                     this.db = e.target.result; 
-                    console.log("Banco de dados pronto.");
                     resolve(); 
                 };
                 
                 dbReq.onerror = (e) => { 
-                    console.error("Erro no banco:", e.target.error); 
                     reject(e.target.error);
                 };
             });
         },
         
-        // ===== FUNÇÕES PRINCIPAIS =====
-        
-        // Inicializar sistema de áudio
         initAudio() {
             return this.audio.init();
         },
         
-        // Mudar página/banco
+        // ===== GERENCIAMENTO DE PÁGINAS =====
+        
         async changePage(page) {
             this.current.page = page;
             
@@ -557,8 +492,8 @@
                 t.classList.toggle('active', t.dataset.pg === page);
             });
             
-            // Atualizar indicador
-            this.tracking.updateIndicator();
+            // Atualizar indicador (agora só mostra áudios de OUTROS bancos)
+            this.updateActiveAudioIndicator();
             
             // Limpar cache do banco anterior
             this.current.sounds = {};
@@ -567,12 +502,15 @@
             
             // Resetar visualização dos pads não ativos
             for(let i = 1; i <= 9; i++) {
-                const isPlayingElsewhere = Array.from(this.tracking.activeAudios.keys()).some(key => {
-                    const info = this.tracking.activeAudios.get(key);
-                    return info.pad === i && info.playing;
+                const isPlayingElsewhere = Array.from(this.activeAudios.keys()).some(key => {
+                    const info = this.activeAudios.get(key);
+                    return info.pad === i && info.playing && info.page !== page; // Só considera se for de OUTRO banco
                 });
                 
-                if (!isPlayingElsewhere) {
+                // Não resetar se estiver tocando no banco atual (você já vê)
+                const isPlayingInCurrentPage = this.current.activeSources[i];
+                
+                if (!isPlayingInCurrentPage && !isPlayingElsewhere) {
                     document.getElementById(`name-${i}`).innerText = "---";
                     document.getElementById(`rem-${i}`).innerText = "00:00";
                     document.getElementById(`prog-${i}`).style.width = "0%";
@@ -588,46 +526,78 @@
             showAlert(`BANCO ${page} PRONTO`);
         },
         
-        // Carregar dados do banco
-        async loadBankData(page) {
-            if (!this.db) return;
+        // ===== ÁUDIOS ATIVOS ENTRE BANCOS =====
+        
+        // ATUALIZADO: Só mostrar áudios de OUTROS bancos
+        updateActiveAudioIndicator() {
+            const indicator = document.getElementById('activeAudioIndicator');
+            indicator.innerHTML = '';
             
-            return new Promise((resolve) => {
-                const tx = this.db.transaction("pads", "readonly");
-                const store = tx.objectStore("pads");
-                const index = store.index("page_idx");
-                
-                const request = index.getAll(page);
-                
-                request.onsuccess = async (e) => {
-                    const pageData = e.target.result.filter(item => item.type !== 'settings' && item.type !== 'stopgroup');
-                    
-                    for(let item of pageData) {
-                        try {
-                            if (!this.audio.ctx) this.initAudio();
-                            const buffer = await this.audio.ctx.decodeAudioData(item.data.slice(0));
-                            this.current.sounds[item.id] = {
-                                buffer,
-                                name: item.name,
-                                duration: buffer.duration
-                            };
-                            document.getElementById(`name-${item.id}`).innerText = item.name;
-                            document.getElementById(`rem-${item.id}`).innerText = this.formatTime(buffer.duration);
-                        } catch(err) {
-                            console.error("Erro ao decodificar áudio:", err);
-                        }
-                    }
-                    resolve();
-                };
+            let otherBankAudios = [];
+            
+            this.activeAudios.forEach((info, key) => {
+                // ATUALIZAÇÃO: Só incluir se for de OUTRO banco E estiver tocando
+                if (info.playing && info.page !== this.current.page) {
+                    otherBankAudios.push(`Pad ${info.pad} (Banco ${info.page})`);
+                }
             });
+            
+            if (otherBankAudios.length > 0) {
+                indicator.innerHTML = `<span class="playing-icon">▶️</span> ${otherBankAudios.join(', ')}`;
+            }
         },
         
-        // Tocar som
+        addActiveAudio(padId, page, source, duration) {
+            const key = `${page}-${padId}`;
+            this.activeAudios.set(key, {
+                pad: padId,
+                page: page,
+                playing: true,
+                startTime: this.audio.ctx.currentTime,
+                duration: duration,
+                source: source
+            });
+            
+            // ATUALIZADO: Só atualizar indicador se for de OUTRO banco
+            if (page !== this.current.page) {
+                this.updateActiveAudioIndicator();
+            }
+        },
+        
+        removeActiveAudio(padId, page) {
+            const key = `${page}-${padId}`;
+            this.activeAudios.delete(key);
+            
+            // ATUALIZADO: Sempre atualizar indicador ao remover
+            this.updateActiveAudioIndicator();
+        },
+        
+        // Parar áudio de qualquer banco (usado por Stop Groups)
+        stopAudioFromAnywhere(padId, page) {
+            const key = `${page}-${padId}`;
+            const info = this.activeAudios.get(key);
+            
+            if (info) {
+                // Se estiver na página atual
+                if (page === this.current.page && this.current.activeSources[padId]) {
+                    this.stopSound(padId, true);
+                } else {
+                    // Parar fonte se existir
+                    if (info.source) {
+                        try { info.source.stop(); } catch(e) {}
+                    }
+                    this.activeAudios.delete(key);
+                    this.updateActiveAudioIndicator();
+                }
+            }
+        },
+        
+        // ===== CONTROLE DE ÁUDIO =====
+        
         playSound(padId) {
-            // ETAPA 3: Aplicar stop groups
+            // Aplicar stop groups
             this.applyStopGroups(padId);
             
-            const key = this.current.page + padId;
             if (!this.current.sounds[padId]) {
                 showAlert(`PAD ${padId} VAZIO`);
                 return;
@@ -647,7 +617,7 @@
             try {
                 const src = this.audio.ctx.createBufferSource();
                 src.buffer = this.current.sounds[padId].buffer;
-                src.loop = !!this.settings.loops[key];
+                src.loop = !!this.settings.loops[`${this.current.page}${padId}`];
                 
                 // Aplicar fade e volume
                 const gainNode = this.applyFade(padId, src, this.current.sounds[padId].duration);
@@ -663,7 +633,7 @@
                 };
                 
                 // Registrar como ativo
-                this.tracking.addActive(padId, this.current.page, src, this.current.sounds[padId].duration);
+                this.addActiveAudio(padId, this.current.page, src, this.current.sounds[padId].duration);
                 
                 document.getElementById(`pad-${padId}`).classList.add('active');
                 
@@ -671,7 +641,7 @@
                 this.animateProgress(padId, start);
                 
                 src.onended = () => {
-                    if (!this.settings.loops[key]) {
+                    if (!this.settings.loops[`${this.current.page}${padId}`]) {
                         this.stopSound(padId);
                     }
                 };
@@ -682,18 +652,6 @@
             }
         },
         
-        // ETAPA 3: Aplicar stop groups
-        applyStopGroups(padId) {
-            const key = `${this.current.page}-${padId}`;
-            if (this.settings.stopGroups[key]) {
-                this.settings.stopGroups[key].forEach(target => {
-                    const [targetPage, targetId] = target.split('-');
-                    this.tracking.stopFromAnywhere(targetId, targetPage);
-                });
-            }
-        },
-        
-        // Parar som
         stopSound(padId, immediate = false) {
             const audioKey = `${this.current.page}-${padId}`;
             const source = this.current.activeSources[padId];
@@ -729,10 +687,39 @@
             }
         },
         
-        // Limpar pad após parar
+        // Parar TODOS os áudios de TODOS os bancos
+        stopAll() {
+            // Parar todos os áudios ativos
+            this.activeAudios.forEach((info, key) => {
+                if (info.source) {
+                    try { info.source.stop(); } catch(e) {}
+                }
+            });
+            
+            // Limpar tudo
+            this.activeAudios.clear();
+            this.current.activeSources = {};
+            
+            // Atualizar UI
+            for(let i = 1; i <= 9; i++) {
+                document.getElementById(`pad-${i}`).classList.remove('active');
+                document.getElementById(`prog-${i}`).style.width = "0%";
+                document.getElementById(`cur-${i}`).innerText = "00:00";
+                if (this.current.sounds[i]) {
+                    document.getElementById(`rem-${i}`).innerText = 
+                        this.formatTime(this.current.sounds[i].duration);
+                }
+            }
+            
+            // Atualizar indicador
+            this.updateActiveAudioIndicator();
+            
+            showAlert("TODOS OS ÁUDIOS PARADOS");
+        },
+        
         cleanupPad(padId, audioKey) {
             this.current.activeSources[padId] = null;
-            this.tracking.removeActive(padId, this.current.page);
+            this.removeActiveAudio(padId, this.current.page);
             
             document.getElementById(`pad-${padId}`).classList.remove('active');
             document.getElementById(`prog-${padId}`).style.width = "0%";
@@ -744,67 +731,16 @@
             }
         },
         
-        // Parar todos os sons
-        stopAll() {
-            this.tracking.activeAudios.clear();
-            this.tracking.updateIndicator();
-            
-            Object.keys(this.current.activeSources).forEach(id => {
-                if (this.current.activeSources[id]) {
-                    this.stopSound(id, true);
-                }
-            });
-        },
+        // ===== STOP GROUPS =====
         
-        // Aplicar fade
-        applyFade(padId, sourceNode, duration) {
+        applyStopGroups(padId) {
             const key = `${this.current.page}-${padId}`;
-            const volume = this.settings.volumes[key] || 1;
-            const fade = this.settings.fades[key] || { in: 0, out: 0 };
-            
-            const gainNode = this.audio.ctx.createGain();
-            const now = this.audio.ctx.currentTime;
-            
-            // Fade in
-            if (fade.in > 0) {
-                gainNode.gain.setValueAtTime(0.001, now);
-                gainNode.gain.exponentialRampToValueAtTime(
-                    volume, 
-                    now + Math.min(fade.in, duration * 0.9)
-                );
-            } else {
-                gainNode.gain.value = volume;
+            if (this.settings.stopGroups[key]) {
+                this.settings.stopGroups[key].forEach(target => {
+                    const [targetPage, targetId] = target.split('-');
+                    this.stopAudioFromAnywhere(targetId, targetPage);
+                });
             }
-            
-            // Fade out (se não for loop)
-            const loopKey = this.current.page + padId;
-            if (fade.out > 0 && !this.settings.loops[loopKey]) {
-                const fadeOutStart = now + duration - Math.min(fade.out, duration * 0.9);
-                gainNode.gain.setValueAtTime(volume, fadeOutStart);
-                gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
-            }
-            
-            this.current.padGainNodes[key] = gainNode;
-            sourceNode.connect(gainNode);
-            return gainNode;
-        },
-        
-        // Animar barra de progresso
-        animateProgress(padId, startTime) {
-            const animate = () => {
-                const source = this.current.activeSources[padId];
-                if (!source || !this.current.sounds[padId]) return;
-                
-                let elapsed = (this.audio.ctx.currentTime - startTime) % this.current.sounds[padId].duration;
-                document.getElementById(`prog-${padId}`).style.width = 
-                    (elapsed / this.current.sounds[padId].duration * 100) + "%";
-                document.getElementById(`cur-${padId}`).innerText = this.formatTime(elapsed);
-                document.getElementById(`rem-${padId}`).innerText = 
-                    "-" + this.formatTime(this.current.sounds[padId].duration - elapsed);
-                
-                requestAnimationFrame(animate);
-            };
-            animate();
         },
         
         // ===== FUNÇÕES AUXILIARES =====
@@ -886,7 +822,89 @@
             this.savePadSettings(padId);
         },
         
-        // ===== PERSISTÊNCIA =====
+        applyFade(padId, sourceNode, duration) {
+            const key = `${this.current.page}-${padId}`;
+            const volume = this.settings.volumes[key] || 1;
+            const fade = this.settings.fades[key] || { in: 0, out: 0 };
+            
+            const gainNode = this.audio.ctx.createGain();
+            const now = this.audio.ctx.currentTime;
+            
+            // Fade in
+            if (fade.in > 0) {
+                gainNode.gain.setValueAtTime(0.001, now);
+                gainNode.gain.exponentialRampToValueAtTime(
+                    volume, 
+                    now + Math.min(fade.in, duration * 0.9)
+                );
+            } else {
+                gainNode.gain.value = volume;
+            }
+            
+            // Fade out (se não for loop)
+            const loopKey = this.current.page + padId;
+            if (fade.out > 0 && !this.settings.loops[loopKey]) {
+                const fadeOutStart = now + duration - Math.min(fade.out, duration * 0.9);
+                gainNode.gain.setValueAtTime(volume, fadeOutStart);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+            }
+            
+            this.current.padGainNodes[key] = gainNode;
+            sourceNode.connect(gainNode);
+            return gainNode;
+        },
+        
+        animateProgress(padId, startTime) {
+            const animate = () => {
+                const source = this.current.activeSources[padId];
+                if (!source || !this.current.sounds[padId]) return;
+                
+                let elapsed = (this.audio.ctx.currentTime - startTime) % this.current.sounds[padId].duration;
+                document.getElementById(`prog-${padId}`).style.width = 
+                    (elapsed / this.current.sounds[padId].duration * 100) + "%";
+                document.getElementById(`cur-${padId}`).innerText = this.formatTime(elapsed);
+                document.getElementById(`rem-${padId}`).innerText = 
+                    "-" + this.formatTime(this.current.sounds[padId].duration - elapsed);
+                
+                requestAnimationFrame(animate);
+            };
+            animate();
+        },
+        
+        // ===== BANCO DE DADOS =====
+        
+        async loadBankData(page) {
+            if (!this.db) return;
+            
+            return new Promise((resolve) => {
+                const tx = this.db.transaction("pads", "readonly");
+                const store = tx.objectStore("pads");
+                const index = store.index("page_idx");
+                
+                const request = index.getAll(page);
+                
+                request.onsuccess = async (e) => {
+                    const pageData = e.target.result.filter(item => item.type !== 'settings' && item.type !== 'stopgroup');
+                    
+                    for(let item of pageData) {
+                        try {
+                            if (!this.audio.ctx) this.initAudio();
+                            const buffer = await this.audio.ctx.decodeAudioData(item.data.slice(0));
+                            this.current.sounds[item.id] = {
+                                buffer,
+                                name: item.name,
+                                duration: buffer.duration
+                            };
+                            document.getElementById(`name-${item.id}`).innerText = item.name;
+                            document.getElementById(`rem-${item.id}`).innerText = this.formatTime(buffer.duration);
+                        } catch(err) {
+                            console.error("Erro ao decodificar áudio:", err);
+                        }
+                    }
+                    resolve();
+                };
+            });
+        },
         
         async savePadSettings(padId) {
             if (!this.db) return;
@@ -901,7 +919,7 @@
                 fadeIn: this.settings.fades[key]?.in || 0,
                 fadeOut: this.settings.fades[key]?.out || 0,
                 fadeIndex: this.settings.fades[key]?.index || 0,
-                loop: this.settings.loops[key] || false
+                loop: this.settings.loops[`${this.current.page}${padId}`] || false
             };
             
             const tx = this.db.transaction("pads", "readwrite");
@@ -920,6 +938,7 @@
                     
                     allData.filter(item => item.type === 'settings').forEach(item => {
                         const key = `${item.page}-${item.pad}`;
+                        const loopKey = `${item.page}${item.pad}`;
                         
                         this.settings.volumes[key] = item.volume || 1;
                         
@@ -932,7 +951,7 @@
                         }
                         
                         if (item.loop !== undefined) {
-                            this.settings.loops[key] = item.loop;
+                            this.settings.loops[loopKey] = item.loop;
                         }
                         
                         // Atualizar controles se for o banco atual
@@ -948,6 +967,7 @@
         
         updatePadControls(padId) {
             const key = `${this.current.page}-${padId}`;
+            const loopKey = `${this.current.page}${padId}`;
             
             // Volume
             const slider = document.getElementById(`vol-slider-${padId}`);
@@ -985,11 +1005,9 @@
             // Loop
             const loopBtn = document.getElementById(`loop-${padId}`);
             if (loopBtn) {
-                loopBtn.classList.toggle('active', !!this.settings.loops[key]);
+                loopBtn.classList.toggle('active', !!this.settings.loops[loopKey]);
             }
         },
-        
-        // ===== STOP GROUPS =====
         
         async loadStopGroups() {
             if (!this.db) return;
@@ -1032,7 +1050,6 @@
     // INICIALIZAÇÃO DA PÁGINA
     // ============================================
 
-    // Elemento para alertas
     function showAlert(text) {
         const alert = document.getElementById('alert');
         alert.textContent = text;
@@ -1084,10 +1101,8 @@
                 <input type="file" id="in-${i}" style="display:none" accept="audio/*" onchange="handleFile(event, ${i})">
             `;
             
-            // Configurar slider de volume
             setupVolumeSlider(i);
             
-            // Configurar clique no pad
             pad.onclick = (e) => {
                 if (!e.target.closest('.pad-controls') && !e.target.closest('.ctx-menu')) {
                     MasterConsole.initAudio();
@@ -1099,7 +1114,6 @@
         }
     }
 
-    // Configurar slider de volume
     function setupVolumeSlider(padId) {
         const track = document.getElementById(`vol-track-${padId}`);
         const slider = document.getElementById(`vol-slider-${padId}`);
@@ -1122,7 +1136,6 @@
             fill.style.width = `${percent}%`;
         };
         
-        // Mouse events
         slider.addEventListener('mousedown', (e) => {
             e.stopPropagation();
             isDragging = true;
@@ -1146,7 +1159,6 @@
             document.removeEventListener('mouseup', onMouseUp);
         };
         
-        // Touch events
         slider.addEventListener('touchstart', (e) => {
             e.stopPropagation();
             isDragging = true;
@@ -1174,15 +1186,12 @@
     }
 
     // ============================================
-    // FUNÇÕES GLOBAIS (interface com o HTML)
+    // FUNÇÕES GLOBAIS
     // ============================================
 
-    // Inicialização
     async function initApp() {
-        // Criar pads
         createPads();
         
-        // Inicializar banco de dados
         try {
             await MasterConsole.initDB();
             await MasterConsole.changePage('A');
@@ -1192,10 +1201,8 @@
             showAlert("ERRO NA INICIALIZAÇÃO");
         }
         
-        // Configurar eventos globais
         setupGlobalEvents();
         
-        // Inicializar áudio no primeiro clique
         document.body.addEventListener('click', function initAudioOnClick() {
             MasterConsole.initAudio();
             document.body.removeEventListener('click', initAudioOnClick);
@@ -1203,7 +1210,6 @@
     }
 
     function setupGlobalEvents() {
-        // Teclado
         window.addEventListener('keydown', (e) => {
             if (e.key >= '1' && e.key <= '9') {
                 MasterConsole.initAudio();
@@ -1214,14 +1220,12 @@
             }
         });
         
-        // Master volume
         document.getElementById('gainSlider').oninput = (e) => {
             if (MasterConsole.audio.gain) {
                 MasterConsole.audio.gain.gain.value = parseFloat(e.target.value);
             }
         };
         
-        // Fechar menus ao clicar fora
         window.onclick = () => {
             document.querySelectorAll('.ctx-menu').forEach(m => m.classList.remove('show'));
         };
@@ -1272,21 +1276,18 @@
         try {
             const raw = await file.arrayBuffer();
             
-            // Decodificar áudio
             if (!MasterConsole.audio.ctx) MasterConsole.initAudio();
             const buffer = await MasterConsole.audio.ctx.decodeAudioData(raw.slice(0));
             
             const name = file.name.replace(/\.[^/.]+$/, "").substring(0, 20);
             const uid = `${MasterConsole.current.page}-${id}`;
             
-            // Salvar no cache
             MasterConsole.current.sounds[id] = {
                 buffer,
                 name,
                 duration: buffer.duration
             };
             
-            // Salvar no IndexedDB
             if (MasterConsole.db) {
                 const tx = MasterConsole.db.transaction("pads", "readwrite");
                 tx.objectStore("pads").put({
@@ -1298,7 +1299,6 @@
                 });
             }
             
-            // Atualizar UI
             document.getElementById(`name-${id}`).innerText = name;
             document.getElementById(`rem-${id}`).innerText = MasterConsole.formatTime(buffer.duration);
             
@@ -1319,20 +1319,13 @@
             const uid = `${MasterConsole.current.page}-${id}`;
             const tx = MasterConsole.db.transaction("pads", "readwrite");
             
-            // Remover áudio
             tx.objectStore("pads").delete(uid);
-            
-            // Remover configurações
             tx.objectStore("pads").delete(`settings-${uid}`);
-            
-            // Remover stop group
             tx.objectStore("pads").delete(`stopgroup-${uid}`);
             
-            // Remover do cache
             delete MasterConsole.settings.stopGroups[uid];
         }
         
-        // Resetar UI
         document.getElementById(`name-${id}`).innerText = "---";
         document.getElementById(`rem-${id}`).innerText = "00:00";
         
@@ -1357,9 +1350,10 @@
         }
         
         const key = `${MasterConsole.current.page}-${id}`;
+        const loopKey = `${MasterConsole.current.page}${id}`;
         delete MasterConsole.settings.volumes[key];
         delete MasterConsole.settings.fades[key];
-        delete MasterConsole.settings.loops[key];
+        delete MasterConsole.settings.loops[loopKey];
         
         MasterConsole.updateStopGroupMenuLabels();
         showAlert(`PAD ${id} LIMPO`);
@@ -1369,7 +1363,6 @@
         if (confirm("LIMPAR TODA A MEMÓRIA? Perderá todos os áudios em todos os bancos.")) {
             MasterConsole.stopAll();
             
-            // Limpar caches
             MasterConsole.current.sounds = {};
             MasterConsole.settings = {
                 volumes: {},
@@ -1377,9 +1370,8 @@
                 loops: {},
                 stopGroups: {}
             };
-            MasterConsole.tracking.activeAudios.clear();
+            MasterConsole.activeAudios.clear();
             
-            // Limpar banco de dados
             if (MasterConsole.db) {
                 const tx = MasterConsole.db.transaction("pads", "readwrite");
                 tx.objectStore("pads").clear();
@@ -1653,10 +1645,8 @@
     // INICIAR APLICAÇÃO
     // ============================================
 
-    // Iniciar quando a página carregar
     window.addEventListener('DOMContentLoaded', () => {
         initApp();
-        // Iniciar VU Meter
         updateVU();
     });
 
